@@ -15,16 +15,17 @@ internal class PlayerService
 
     static readonly WaitForSeconds Delay = new(60);
 
-    static readonly ComponentType[] UserComponent =
-    [
+    static readonly ComponentType[] UserComponent = new ComponentType[]
+    {
         ComponentType.ReadOnly(Il2CppType.Of<User>()),
-    ];
+    };
 
     static EntityQuery UserQuery;
 
-    public static readonly Dictionary<string, PlayerInfo> PlayerCache = [];
+    public static readonly Dictionary<string, PlayerInfo> PlayerCache = new Dictionary<string, PlayerInfo>();
 
-    public static readonly Dictionary<string, PlayerInfo> OnlineCache = [];
+    public static readonly Dictionary<string, PlayerInfo> OnlineCache = new Dictionary<string, PlayerInfo>();
+    
     public class PlayerInfo(Entity userEntity = default, Entity charEntity = default, User user = default)
     {
         public User User { get; set; } = user;

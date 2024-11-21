@@ -22,6 +22,7 @@
     <PackageReference Include="VRising.VampireCommandFramework" Version="0.9.0" />
   </ItemGroup>
   <ItemGroup>
+	<None Include =".github\FUNDING.yml" />
     <None Include=".github\workflows\build.yml" />
   </ItemGroup>
   <ItemGroup>
