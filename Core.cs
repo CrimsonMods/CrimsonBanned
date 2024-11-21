@@ -31,7 +31,6 @@ internal static class Core
         if (hasInitialized) return;
 
         PlayerService = new PlayerService();
-        _ = new JSONBinService();
 
         Database = new Database();
 

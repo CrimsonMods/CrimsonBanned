@@ -44,7 +44,6 @@ public static class VivoxPatch
                     if (DateTime.Now > ban.TimeUntil)
                     {
                         Database.VoiceBans.Remove(ban);
-                        Database.SaveDatabases();
 
                         ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, user,
                             "Your voice ban has expired. Please verify in your social settings that Voice Proximity is re-enabled.");

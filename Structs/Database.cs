@@ -1,5 +1,7 @@
 ﻿using CrimsonBanned.Services;
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Text.Json;
 
@@ -21,6 +23,8 @@ internal class Database
     public static List<Ban> ChatBans;
     public static List<Ban> VoiceBans;
 
+    public static SQLService SQL;
+
     public Database()
     {
         LoadDatabases();
@@ -28,23 +32,6 @@ internal class Database
 
     private static async void LoadDatabases()
     {
-        if (Settings.JSONBinConfigured)
-        {
-            BansContainer container = await JSONBinService.GetBans();
-
-            if (container != null)
-            {
-                ChatBans = container.ChatBans;
-                VoiceBans = container.VoiceBans;
-                return;
-            }
-            else
-            {
-                Plugin.LogInstance.LogError("Failed to load database. Defaulting to local files.");
-                Settings.JSONBinConfigured = false;
-            }
-        }
-
         if (!Directory.Exists(Plugin.ConfigFiles)) { Directory.CreateDirectory(Plugin.ConfigFiles); }
 
         if (File.Exists(ChatBanFile))
@@ -63,7 +50,7 @@ internal class Database
             VoiceBans = JsonSerializer.Deserialize<List<Ban>>(json, prettyJsonOptions);
         }
         else
-        { 
+        {
             VoiceBans = new List<Ban>();
         }
 
@@ -76,18 +63,63 @@ internal class Database
         {
             Banned = new List<Ban>();
         }
+
+        StartSQLConnection();
     }
 
-    public static async void SaveDatabases()
+    private static void StartSQLConnection()
     {
-        if (Settings.JSONBinConfigured)
+        if (!Settings.MySQLConfigured) return;
+
+        SQL = new();
+        SQL.Connect();
+        SQL.InitializeTables();
+    }
+
+    public static void AddBan(Ban ban, List<Ban> list)
+    {
+        if (list == ChatBans)
         {
-            if (await JSONBinService.UpdateBans(new BansContainer(ChatBans, VoiceBans)))
-            {
-                return;
-            }
+            ChatBans.Add(ban);
+            SQL.InsertBan("Chat", ban.PlayerName, ban.PlayerID, ban.Reason, ban.TimeUntil);
+        }
+        else if (list == VoiceBans)
+        {
+            VoiceBans.Add(ban);
+            SQL.InsertBan("Voice", ban.PlayerName, ban.PlayerID, ban.Reason, ban.TimeUntil);
+        }
+        else
+        {
+            Banned.Add(ban);
+            SQL.InsertBan("Banned", ban.PlayerName, ban.PlayerID, ban.Reason, ban.TimeUntil);
         }
 
+        SaveDatabases();
+    }
+
+    public static void DeleteBan(Ban ban, List<Ban> list)
+    {
+        if (list == ChatBans)
+        {
+            ChatBans.Remove(ban);
+            SQL.DeleteBan("Chat", ban.PlayerID);
+        }
+        else if (list == VoiceBans)
+        {
+            VoiceBans.Remove(ban);
+            SQL.DeleteBan("Voice", ban.PlayerID);
+        }
+        else
+        {
+            Banned.Remove(ban);
+            SQL.DeleteBan("Banned", ban.PlayerID);
+        }
+
+        SaveDatabases();
+    }
+
+    private static void SaveDatabases()
+    {
         if (ChatBans.Count > 0)
         {
             string json = JsonSerializer.Serialize(ChatBans, prettyJsonOptions);
@@ -104,6 +136,34 @@ internal class Database
         {
             string json = JsonSerializer.Serialize(Banned, prettyJsonOptions);
             File.WriteAllText(BannedFile, json);
+        }
+    }
+
+    public static void SyncDB()
+    {
+        DataTable ChatDB = SQL.GetBans("Chat");
+
+        SyncTable(ChatBans, "Chat");
+        SyncTable(VoiceBans, "Voice");
+        SyncTable(Banned, "Banned");
+    }
+
+    private static void SyncTable(List<Ban> list, string tableName)
+    {
+        DataTable table = SQL.GetBans(tableName);
+        foreach (DataRow row in table.Rows)
+        {
+            Ban ban = new Ban(
+                row["PlayerName"].ToString(),
+                Convert.ToUInt64(row["PlayerID"]),
+                Convert.ToDateTime(row["TimeUntil"]),
+                row["Reason"].ToString()
+            );
+
+            if (!list.Contains(ban))
+            {
+                list.Add(ban);
+            }
         }
     }
 }

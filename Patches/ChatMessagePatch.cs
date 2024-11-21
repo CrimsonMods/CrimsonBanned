@@ -35,7 +35,6 @@ public static class ChatMessagePatch
                     if (DateTime.Now > ban.TimeUntil)
                     {
                         Database.ChatBans.Remove(ban);
-                        Database.SaveDatabases();
 
                         ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, userData, "Your chat ban has ended.");
                     }

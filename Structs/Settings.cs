@@ -1,5 +1,6 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
+using ProjectM.UI;
 using System.Collections.Generic;
 using System.IO;
 
@@ -8,10 +9,14 @@ namespace CrimsonBanned.Structs;
 public readonly struct Settings
 {
     public static ConfigEntry<bool> ShadowBan { get; private set; }
-    public static ConfigEntry<string> JSONBinAPIKey { get; private set; }
-    public static ConfigEntry<string> JSONBinID { get; private set; }
 
-    public static bool JSONBinConfigured { get; set; } = false;
+    public static ConfigEntry<string> MySQLDbName { get; private set; }
+    public static ConfigEntry<string> Host { get; private set; }
+    public static ConfigEntry<int> Port { get; private set; }
+    public static ConfigEntry<string> UserName { get; private set; }
+    public static ConfigEntry<string> Password { get; private set; }
+
+    public static bool MySQLConfigured { get; set; } = false;
 
     public static void InitConfig()
     {
@@ -23,18 +28,25 @@ public readonly struct Settings
         ShadowBan = InitConfigEntry("_Config", "ShadowBan", true,
             "If this is set to true, the player will never be notified that they are banned.");
 
-        /*
-        JSONBinAPIKey = InitConfigEntry("_Config", "JSONBinAPIKey", string.Empty,
-            "Utilizing a JSONBin.io account, you can sync bans between servers. Consult the Thunderstore wiki on setup.");
+        // MySQL DB
+        MySQLDbName = InitConfigEntry("ServerConnection", "MySQLDbName", "",
+            "The name of your MySQL database.");
+        Host = InitConfigEntry("ServerConnection", "Host", "",
+            "The host address of your MySQL database.");
+        Port = InitConfigEntry("ServerConnection", "Port", 0,
+            "The port of your database server.");
+        UserName = InitConfigEntry("ServerConnection", "Username", "",
+            "The login username for your database.");
+        Password = InitConfigEntry("ServerConnection", "Password", "",
+            "The login password for your database.");
 
-        JSONBinID = InitConfigEntry("_Config", "JSONBinID", string.Empty,
-            "The Bin ID to acess for ban information. Consult the Thunderstore wiki on setup.");
-
-        if (!string.IsNullOrEmpty(JSONBinAPIKey.Value) && !string.IsNullOrEmpty(JSONBinID.Value))
-        {
-            JSONBinConfigured = true;
-        }
-        */
+        if (
+            !string.IsNullOrEmpty(MySQLDbName.Value)
+            && !string.IsNullOrEmpty(Host.Value)
+            && Port.Value != 0
+            && !string.IsNullOrEmpty(UserName.Value)
+            && !string.IsNullOrEmpty(Password.Value)
+          ) MySQLConfigured = true;
     }
 
     static ConfigEntry<T> InitConfigEntry<T>(string section, string key, T defaultValue, string description)

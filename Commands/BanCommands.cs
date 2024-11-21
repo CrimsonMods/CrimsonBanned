@@ -58,8 +58,8 @@ internal static class BanCommands
             return (false, null);
         }
 
-        banList.Add(new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime, reason));
-        Database.SaveDatabases();
+        Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime, reason);
+        Database.AddBan(ban, banList);
 
         ctx.Reply($"{name} has been {banType} for {timeSpan}");
 
