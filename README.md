@@ -1,19 +1,22 @@
-# CrimsonFAQ
+# CrimsonBanned
 `Server side only` mod 
 
-This is a rather simple mod. It functions as an auto-responder mod.
+This mod allows for specified lengths of bans for the following systems:
 
-All of it is buildable in an easy to use json file. 
+* Chat - players will not be able to type in chat
+* Voice - players will not be able to use the voice chat system (speak or hear)
+* Server - bans the player from the server
 
-You give each KeyResponse a "Key" and a "Response". Players can query for the keys and get the response as the result. 
+All of these options are by lengths of time either in minutes, hours, or days.
+
+Use the ServerConnection system to link CrimsonBanned to a MySQL database and sync your bans between servers.
 
 ## Installation
 * Install [BepInEx](https://v-rising.thunderstore.io/package/BepInEx/BepInExPack_V_Rising/)
-* Install [Bloodstone](https://thunderstore.io/c/v-rising/p/deca/Bloodstone/)
 * Install [VampireCommandFramework](https://thunderstore.io/c/v-rising/p/deca/VampireCommandFramework/)
-* Extract _CrimsonFAQ_ into _(VRising server folder)/BepInEx/plugins_
-* Run server once to generate _CrimsonFAQ/responses.json_ and .cfg file
-* Set your preferred prefix in the cfg file (i.e. **?**discord)
+* Extract _CrimsonBanned_ into _(VRising server folder)/BepInEx/plugins_
+* Run server once to generate the .cfg file
+* Setup your .cfg file
 
 ```json 
 [
@@ -28,11 +31,6 @@ You give each KeyResponse a "Key" and a "Response". Players can query for the ke
 ]
 ```
 
-In the _CrimsonFAQ.cfg_ filee you will see you can change a few common things; but you'll also notice that there is a section for Hex Colors.
-This will change how text is displayed in the commands & key query responses.
-
-Here is a way to easily pick hex colors: https://g.co/kgs/DxWQHt4
-
 ## Support
 
 Want to support my V Rising Mod development? 
@@ -44,6 +42,6 @@ Or buy/play my games!
 
 [Train Your Minibot](https://store.steampowered.com/app/713740/Train_Your_Minibot/) 
 
-[Boring Movies](https://store.steampowered.com/app/1792500/Boring_Movies/)
+[Boring Movies](https://store.steampowered.com/app/1792500/Boring_Movies/) **Free to Play!**
 
 **This mod was a paid creation. If you are looking to hire someone to make a mod for any Unity game reach out to me on Discord! (skytech6)**
