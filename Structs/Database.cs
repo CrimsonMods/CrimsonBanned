@@ -1,9 +1,12 @@
 ﻿using CrimsonBanned.Services;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
+using UnityEngine;
 
 namespace CrimsonBanned.Structs;
 
@@ -30,7 +33,7 @@ internal class Database
         LoadDatabases();
     }
 
-    private static async void LoadDatabases()
+    private static void LoadDatabases()
     {
         if (!Directory.Exists(Plugin.ConfigFiles)) { Directory.CreateDirectory(Plugin.ConfigFiles); }
 
@@ -67,13 +70,17 @@ internal class Database
         StartSQLConnection();
     }
 
-    private static void StartSQLConnection()
+    private static async void StartSQLConnection()
     {
         if (!Settings.MySQLConfigured) return;
 
         SQL = new();
         SQL.Connect();
         SQL.InitializeTables();
+        await Task.Yield();
+        SyncDB();
+
+        Core.StartCoroutine(SyncLoop());
     }
 
     public static void AddBan(Ban ban, List<Ban> list)
@@ -141,8 +148,6 @@ internal class Database
 
     public static void SyncDB()
     {
-        DataTable ChatDB = SQL.GetBans("Chat");
-
         SyncTable(ChatBans, "Chat");
         SyncTable(VoiceBans, "Voice");
         SyncTable(Banned, "Banned");
@@ -164,6 +169,15 @@ internal class Database
             {
                 list.Add(ban);
             }
+        }
+    }
+
+    static IEnumerator SyncLoop()
+    {
+        while (true)
+        {   
+            yield return new WaitForSeconds(3600);            
+            SyncDB();
         }
     }
 }
