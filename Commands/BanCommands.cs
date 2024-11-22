@@ -18,7 +18,7 @@ internal static class BanCommands
     [Command(name: "server", shortHand: "s", adminOnly: true)]
     public static void Ban(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
     {
-        var result = HandleBanOperation(ctx, name, length, denomination, Database.ChatBans, "banned", true);
+        var result = HandleBanOperation(ctx, name, length, denomination, Database.Banned, "banned", true);
         if (result.Success) Core.StartCoroutine(DelayKick(result.PlayerInfo));
     }
 
