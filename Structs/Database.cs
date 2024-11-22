@@ -176,7 +176,7 @@ internal class Database
     {
         while (true)
         {   
-            yield return new WaitForSeconds(3600);            
+            yield return new WaitForSeconds(Settings.SyncInterval.Value * 60);            
             SyncDB();
         }
     }

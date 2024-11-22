@@ -16,22 +16,29 @@ namespace CrimsonBanned.Commands;
 internal static class BanCommands
 {
     [Command(name: "server", shortHand: "s", adminOnly: true)]
-    public static void Ban(ChatCommandContext ctx, string name, int length = 10, string denomination = "m", string reason = "")
+    public static void Ban(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
     {
         var result = HandleBanOperation(ctx, name, length, denomination, Database.ChatBans, "banned", true);
         if (result.Success) Core.StartCoroutine(DelayKick(result.PlayerInfo));
     }
 
     [Command(name: "chat", shortHand: "c", adminOnly: true)]
-    public static void BanFromChat(ChatCommandContext ctx, string name, int length = 10, string denomination = "m", string reason = "")
+    public static void BanFromChat(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
     {
         HandleBanOperation(ctx, name, length, denomination, Database.ChatBans, "banned from chat");
     }
 
     [Command(name: "voice", shortHand: "v", adminOnly: true)]
-    public static void BanFromVoice(ChatCommandContext ctx, string name, int length = 10, string denomination = "m", string reason = "")
+    public static void BanFromVoice(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
     {
         HandleBanOperation(ctx, name, length, denomination, Database.VoiceBans, "banned from voice chat");
+    }
+
+    [Command(name: "mute", shortHand: "m", adminOnly: true)]
+    public static void Mute(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
+    {
+        BanFromChat(ctx, name, length, denomination, reason);
+        BanFromVoice(ctx, name, length, denomination, reason);
     }
 
     private static (bool Success, PlayerInfo PlayerInfo) HandleBanOperation(ChatCommandContext ctx, string name, int length, string denomination,
@@ -43,7 +50,15 @@ internal static class BanCommands
             return (false, null);
         }
 
-        if (length <= 0)
+        if(length == -1) length = Settings.DefaultBanLength.Value;
+        if(denomination == "-") denomination = Settings.DefaultBanDenomination.Value;
+
+        if(playerInfo.User.IsAdmin && Settings.AdminImmune.Value)
+        {
+            ctx.Reply("You cannot ban an admin."); return (false, null);
+        }
+
+        if (length < 0)
         {
             ctx.Reply("Please input a valid length of time.");
             return (false, null);
@@ -51,6 +66,8 @@ internal static class BanCommands
 
         var timeSpan = LengthParse(length, denomination);
         var bannedTime = DateTime.Now + timeSpan;
+
+        if(length == 0) bannedTime = DateTime.MinValue;
 
         if (banList.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
         {
@@ -61,13 +78,13 @@ internal static class BanCommands
         Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime, reason);
         Database.AddBan(ban, banList);
 
-        ctx.Reply($"{name} has been {banType} for {timeSpan}");
+        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {timeSpan}")}");
 
         if (!Settings.ShadowBan.Value || isGameBan)
         {
             var message = isGameBan ?
-                $"You have been {banType} for {timeSpan}. You will be kicked in 5 seconds." :
-                $"You have been {banType} for {timeSpan}";
+                $"You have been {banType} {(length == 0 ? "permanent" : $"for {timeSpan}")}. You will be kicked in 5 seconds." :
+                $"You have been {banType} {(length == 0 ? "permanent" : $"for {timeSpan}")}";
 
             ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, playerInfo.User, message);
         }
@@ -86,36 +103,6 @@ internal static class BanCommands
 
         ClientAdminConsoleCommandSystem command = new ClientAdminConsoleCommandSystem();
         command.BanUser(user.PlatformId);
-        
-        /* old method by kicking player 
-        Entity entity = entityManager.CreateEntity(new ComponentType[3]
-        {
-            ComponentType.ReadOnly<NetworkEventType>(),
-            ComponentType.ReadOnly<SendEventToUser>(),
-            ComponentType.ReadOnly<KickEvent>()
-        });
-
-        entity.Write(new KickEvent()
-        {
-            PlatformId = user.PlatformId
-        });
-        entity.Write(new SendEventToUser()
-        {
-            UserIndex = user.Index
-        });
-        entity.Write(new NetworkEventType()
-        {
-            EventId = NetworkEvents.EventId_KickEvent,
-            IsAdminEvent = false,
-            IsDebugEvent = false
-        });
-        */
-    }
-    [Command(name: "mute", shortHand: "m", adminOnly: true)]
-    public static void Mute(ChatCommandContext ctx, string name, int length = 10, string denomination = "m", string reason = "")
-    {
-        BanFromChat(ctx, name, length, denomination);
-        BanFromVoice(ctx, name, length, denomination);
     }
 
     private static TimeSpan LengthParse(int length, string denomination)

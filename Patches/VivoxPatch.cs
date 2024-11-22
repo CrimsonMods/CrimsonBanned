@@ -41,7 +41,7 @@ public static class VivoxPatch
                 {
                     var ban = Database.VoiceBans.First(x => x.PlayerID == user.PlatformId);
 
-                    if (DateTime.Now > ban.TimeUntil)
+                    if (DateTime.Now > ban.TimeUntil && ban.TimeUntil != DateTime.MinValue)
                     {
                         Database.VoiceBans.Remove(ban);
 
