@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -175,8 +176,24 @@ internal class Database
     static IEnumerator SyncLoop()
     {
         while (true)
-        {   
-            yield return new WaitForSeconds(Settings.SyncInterval.Value * 60);            
+        {
+            foreach (Ban ban in Banned)
+            {
+                if (ban.TimeUntil == DateTime.MinValue) continue;
+
+                if (ban.TimeUntil < DateTime.Now)
+                {
+                    DeleteBan(ban, Banned);
+                    if (File.Exists(Settings.BanFilePath.Value))
+                    {
+                        var lines = File.ReadAllLines(Settings.BanFilePath.Value).ToList();
+                        lines.RemoveAll(line => line.Trim() == ban.PlayerID.ToString());
+                        File.WriteAllLines(Settings.BanFilePath.Value, lines);
+                    }
+                }
+            }
+
+            yield return new WaitForSeconds(Settings.SyncInterval.Value * 60 + UnityEngine.Random.Range(-10, 20));
             SyncDB();
         }
     }

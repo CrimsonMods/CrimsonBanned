@@ -12,6 +12,7 @@ public readonly struct Settings
     public static ConfigEntry<int> DefaultBanLength { get; private set; }
     public static ConfigEntry<string> DefaultBanDenomination { get; private set; }
     public static ConfigEntry<bool> AdminImmune { get; private set; }
+    public static ConfigEntry<string> BanFilePath { get; private set; }
 
     public static ConfigEntry<string> MySQLDbName { get; private set; }
     public static ConfigEntry<string> Host { get; private set; }
@@ -37,6 +38,8 @@ public readonly struct Settings
             "If this is set to true, the player will never be notified that they are banned.");
         AdminImmune = InitConfigEntry("_Config", "AdminImmune", true,
             "If this is set to true, admins will be immune to bans.");
+        BanFilePath = InitConfigEntry("_Config", "BanFilePath", "save-data/Settings/banlist.txt",
+            "The path from root to the banlist.txt file");
 
         // MySQL DB
         MySQLDbName = InitConfigEntry("ServerConnection", "MySQLDbName", "",

@@ -56,7 +56,7 @@ internal static class BannedCommands
     }
 
     [Command(name: "loaduntracked", adminOnly: true)]
-    public static void Backlog(ChatCommandContext ctx, string path = "save-data/Settings/banlist.txt")
+    public static void Backlog(ChatCommandContext ctx)
     {
         if (!Settings.MySQLConfigured)
         {
@@ -66,9 +66,9 @@ internal static class BannedCommands
 
         Database.SyncDB();
 
-        if (File.Exists(path))
+        if (File.Exists(Settings.BanFilePath.Value))
         {
-            string[] content = File.ReadAllLines(path);
+            string[] content = File.ReadAllLines(Settings.BanFilePath.Value);
 
             foreach (string line in content)
             {

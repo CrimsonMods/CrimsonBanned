@@ -4,6 +4,7 @@ using ProjectM.Network;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Unity.Entities;
 using UnityEngine;
@@ -101,8 +102,31 @@ internal static class BanCommands
 
         if (user.PlatformId == 0) yield break;
 
-        ClientAdminConsoleCommandSystem command = new ClientAdminConsoleCommandSystem();
-        command.BanUser(user.PlatformId);
+        Entity entity = entityManager.CreateEntity(new ComponentType[3]
+        {
+            ComponentType.ReadOnly<NetworkEventType>(),
+            ComponentType.ReadOnly<SendEventToUser>(),
+            ComponentType.ReadOnly<KickEvent>()
+        });
+        entity.Write(new KickEvent()
+        {
+            PlatformId = user.PlatformId
+        });
+        entity.Write(new SendEventToUser()
+        {
+            UserIndex = user.Index
+        });
+        entity.Write(new NetworkEventType()
+        {
+            EventId = NetworkEvents.EventId_KickEvent,
+            IsAdminEvent = false,
+            IsDebugEvent = false
+        });
+
+        if (File.Exists(Settings.BanFilePath.Value))
+        {
+            File.AppendAllText(Settings.BanFilePath.Value, user.PlatformId.ToString() + Environment.NewLine);
+        }
     }
 
     private static TimeSpan LengthParse(int length, string denomination)
