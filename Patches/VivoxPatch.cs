@@ -3,7 +3,6 @@ using HarmonyLib;
 using ProjectM;
 using ProjectM.Network;
 using System;
-using System.IO;
 using System.Linq;
 using Unity.Collections;
 using Unity.Entities;
@@ -16,90 +15,64 @@ public static class VivoxPatch
     [HarmonyPatch(typeof(VivoxConnectionSystem), nameof(VivoxConnectionSystem.OnUpdate))]
     public static void Prefix(VivoxConnectionSystem __instance)
     {
-        NativeArray<Entity> entities = __instance.__query_337126773_0.ToEntityArray(Allocator.Temp);
+        ProcessEntities(__instance.__query_337126773_0);
+        ProcessEntities(__instance.__query_337126773_1);
+        ProcessEntities(__instance.__query_337126773_2);
+        ProcessEntities(__instance.__query_337126773_3);
+    }
+
+    private static void ProcessEntities(EntityQuery query)
+    {
+        NativeArray<Entity> entities = query.ToEntityArray(Allocator.Temp);
         foreach (var entity in entities)
         {
             if (entity.Has<FromCharacter>())
             {
                 User user = entity.Read<FromCharacter>().User.Read<User>();
-                if (Database.VoiceBans.Exists(x => x.PlayerID == user.PlatformId))
-                {
-                    // check if expired
-
-                    Core.Server.EntityManager.DestroyEntity(entity);
-                }
+                HandleUser(entity, user);
             }
         }
-
-        NativeArray<Entity> entities1 = __instance.__query_337126773_1.ToEntityArray(Allocator.Temp);
-        foreach (var entity in entities1)
-        {
-            if (entity.Has<FromCharacter>())
-            {
-                User user = entity.Read<FromCharacter>().User.Read<User>();
-                if (Database.VoiceBans.Exists(x => x.PlayerID == user.PlatformId))
-                {
-                    var ban = Database.VoiceBans.First(x => x.PlayerID == user.PlatformId);
-
-                    if (DateTime.Now > ban.TimeUntil && ban.TimeUntil != DateTime.MinValue)
-                    {
-                        Database.VoiceBans.Remove(ban);
-
-                        ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, user,
-                            "Your voice ban has expired. Please verify in your social settings that Voice Proximity is re-enabled.");
-                    }
-                    else
-                    {
-                        Core.Server.EntityManager.DestroyEntity(entity);
-                    }
-                }
-            }
-        }
-
-        NativeArray<Entity> entities2 = __instance.__query_337126773_2.ToEntityArray(Allocator.Temp);
-        foreach (var entity in entities2)
-        {
-            if (entity.Has<FromCharacter>())
-            {
-                User user = entity.Read<FromCharacter>().User.Read<User>();
-                if (Database.VoiceBans.Exists(x => x.PlayerID == user.PlatformId))
-                {
-                    Core.Server.EntityManager.DestroyEntity(entity);
-                }
-            }
-        }
-
-        NativeArray<Entity> entities3 = __instance.__query_337126773_3.ToEntityArray(Allocator.Temp);
-        foreach (var entity in entities3)
-        {
-            if (entity.Has<FromCharacter>())
-            {
-                User user = entity.Read<FromCharacter>().User.Read<User>();
-                if (Database.VoiceBans.Exists(x => x.PlayerID == user.PlatformId))
-                {
-                    Core.Server.EntityManager.DestroyEntity(entity);
-                }
-            }
-        }
+        entities.Dispose();
     }
 
-    public static void EntityCompomponentDumper(string filePath, Entity entity)
+    private static void HandleUser(Entity entity, User user)
     {
-        File.AppendAllText(filePath, $"--------------------------------------------------" + Environment.NewLine);
-        File.AppendAllText(filePath, $"Dumping components of {entity.ToString()}:" + Environment.NewLine);
+        if (Database.VoiceBans.Exists(x => x.PlayerID == user.PlatformId))
+        {
+            var ban = Database.VoiceBans.First(x => x.PlayerID == user.PlatformId);
+ 
+            if(DateTime.Now > ban.TimeUntil && ban.TimeUntil != DateTime.MinValue)
+            {
+                Database.DeleteBan(ban, Database.VoiceBans);
+                ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, user,
+                    "Your voice ban has expired. Please verify in your social settings that Voice Proximity is re-enabled.");
+            }
+            else
+            {
+                if(entity.Has<VivoxEvents.ClientEvent>())
+                {
+                    VivoxEvents.ClientEvent clientEvent = entity.Read<VivoxEvents.ClientEvent>();
+                    clientEvent.Type = VivoxRequestType.ClientLogin;
 
-        foreach (var componentType in Core.Server.EntityManager.GetComponentTypes(entity))
-        { File.AppendAllText(filePath, $"{componentType.ToString()}" + Environment.NewLine); }
+                    entity.Write(clientEvent);
+                }
 
-        File.AppendAllText(filePath, $"--------------------------------------------------" + Environment.NewLine);
+                if(entity.Has<VivoxEvents.ClientStateEvent>())
+                {
+                    VivoxEvents.ClientStateEvent clientStateEvent = entity.Read<VivoxEvents.ClientStateEvent>();
+                    clientStateEvent.IsSpeaking = false;
 
-        File.AppendAllText(filePath, DumpEntity(entity));
-    }
+                    entity.Write(clientStateEvent);
+                }
 
-    private static string DumpEntity(Entity entity, bool fullDump = true)
-    {
-        var sb = new Il2CppSystem.Text.StringBuilder();
-        ProjectM.EntityDebuggingUtility.DumpEntity(Core.Server, entity, fullDump, sb);
-        return sb.ToString();
+                Core.Server.EntityManager.DestroyEntity(entity);
+                return;
+            }
+        }
+        
+        if (Database.Banned.Exists(x => x.PlayerID == user.PlatformId))
+        {
+            Core.Server.EntityManager.DestroyEntity(entity);
+        }
     }
 }

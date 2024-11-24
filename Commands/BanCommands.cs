@@ -17,32 +17,32 @@ namespace CrimsonBanned.Commands;
 internal static class BanCommands
 {
     [Command(name: "server", shortHand: "s", adminOnly: true)]
-    public static void Ban(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
+    public static void Ban(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
     {
-        var result = HandleBanOperation(ctx, name, length, denomination, Database.Banned, "banned", true);
+        var result = HandleBanOperation(ctx, name, length, timeunit, Database.Banned, "banned", true);
         if (result.Success) Core.StartCoroutine(DelayKick(result.PlayerInfo));
     }
 
     [Command(name: "chat", shortHand: "c", adminOnly: true)]
-    public static void BanFromChat(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
+    public static void BanFromChat(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
     {
-        HandleBanOperation(ctx, name, length, denomination, Database.ChatBans, "banned from chat");
+        HandleBanOperation(ctx, name, length, timeunit, Database.ChatBans, "banned from chat");
     }
 
     [Command(name: "voice", shortHand: "v", adminOnly: true)]
-    public static void BanFromVoice(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
+    public static void BanFromVoice(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
     {
-        HandleBanOperation(ctx, name, length, denomination, Database.VoiceBans, "banned from voice chat");
+        HandleBanOperation(ctx, name, length, timeunit, Database.VoiceBans, "banned from voice chat");
     }
 
     [Command(name: "mute", shortHand: "m", adminOnly: true)]
-    public static void Mute(ChatCommandContext ctx, string name, int length = -1, string denomination = "-", string reason = "")
+    public static void Mute(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
     {
-        BanFromChat(ctx, name, length, denomination, reason);
-        BanFromVoice(ctx, name, length, denomination, reason);
+        BanFromChat(ctx, name, length, timeunit, reason);
+        BanFromVoice(ctx, name, length, timeunit, reason);
     }
 
-    private static (bool Success, PlayerInfo PlayerInfo) HandleBanOperation(ChatCommandContext ctx, string name, int length, string denomination,
+    private static (bool Success, PlayerInfo PlayerInfo) HandleBanOperation(ChatCommandContext ctx, string name, int length, string timeunit,
         List<Ban> banList, string banType, bool isGameBan = false, string reason = "")
     {
         if (!Extensions.TryGetPlayerInfo(name, out PlayerInfo playerInfo))
@@ -52,7 +52,7 @@ internal static class BanCommands
         }
 
         if(length == -1) length = Settings.DefaultBanLength.Value;
-        if(denomination == "-") denomination = Settings.DefaultBanDenomination.Value;
+        if(timeunit == "-") timeunit = Settings.DefaultBanDenomination.Value;
 
         if(playerInfo.User.IsAdmin && Settings.AdminImmune.Value)
         {
@@ -65,7 +65,7 @@ internal static class BanCommands
             return (false, null);
         }
 
-        var timeSpan = LengthParse(length, denomination);
+        var timeSpan = LengthParse(length, timeunit);
         var bannedTime = DateTime.Now + timeSpan;
 
         if(length == 0) bannedTime = DateTime.MinValue;

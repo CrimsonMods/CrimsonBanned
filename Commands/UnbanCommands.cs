@@ -1,6 +1,7 @@
 ﻿using CrimsonBanned.Structs;
 using ProjectM;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using VampireCommandFramework;
 using static CrimsonBanned.Services.PlayerService;
@@ -54,10 +55,19 @@ internal static class UnbanCommands
 
         ctx.Reply($"{name} has been {unbanType}");
 
-        if (unbanType != "unbanned") // Don't send message for game unbans
+        if (unbanType != "unbanned" && !Settings.ShadowBan.Value) // Don't send message for game unbans
         {
             ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, playerInfo.User,
                 $"You have been {unbanType}.");
+        }
+        else
+        {
+            if (File.Exists(Settings.BanFilePath.Value))
+            {
+                var lines = File.ReadAllLines(Settings.BanFilePath.Value).ToList();
+                lines.RemoveAll(line => line.Trim() == ban.PlayerID.ToString());
+                File.WriteAllLines(Settings.BanFilePath.Value, lines);
+            }
         }
     }
 }

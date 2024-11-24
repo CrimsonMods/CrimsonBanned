@@ -58,9 +58,9 @@ internal static class BannedCommands
     [Command(name: "loaduntracked", adminOnly: true)]
     public static void Backlog(ChatCommandContext ctx)
     {
-        if (!Settings.MySQLConfigured)
+        if (Database.SQL == null)
         {
-            ctx.Reply("MySQL is not configured. Please configure MySQL in the config file.");
+            ctx.Reply("MySQL is not configured. Please configure MySQL using CrimsonSQL.");
             return;
         }
 

@@ -3,6 +3,7 @@ using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using CrimsonBanned.Structs;
 using HarmonyLib;
+using System;
 using System.IO;
 using System.Reflection;
 using VampireCommandFramework;
@@ -11,6 +12,7 @@ namespace CrimsonBanned;
 
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency("gg.deca.VampireCommandFramework")]
+[BepInDependency("CrimsonSQL", BepInDependency.DependencyFlags.SoftDependency)]
 public class Plugin : BasePlugin
 {
     Harmony _harmony;

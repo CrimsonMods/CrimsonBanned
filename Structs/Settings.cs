@@ -14,14 +14,7 @@ public readonly struct Settings
     public static ConfigEntry<bool> AdminImmune { get; private set; }
     public static ConfigEntry<string> BanFilePath { get; private set; }
 
-    public static ConfigEntry<string> MySQLDbName { get; private set; }
-    public static ConfigEntry<string> Host { get; private set; }
-    public static ConfigEntry<int> Port { get; private set; }
-    public static ConfigEntry<string> UserName { get; private set; }
-    public static ConfigEntry<string> Password { get; private set; }
     public static ConfigEntry<int> SyncInterval { get; private set; }
-
-    public static bool MySQLConfigured { get; set; } = false;
 
     public static void InitConfig()
     {
@@ -30,10 +23,10 @@ public readonly struct Settings
             CreateDirectories(path);
         }
 
-        DefaultBanDenomination = InitConfigEntry("_Config", "DefaultBanDenomination", "minute",
+        DefaultBanDenomination = InitConfigEntry("_Config", "DefaultUnitOfTime", "minute",
         "Valid Options: day, hour, minute");
         DefaultBanLength = InitConfigEntry("_Config", "DefaultBanLength", 30,
-        "The length of the chosen denomination to apply the ban. 0 will default to perma-bans.");
+        "The length of the chosen unit of time to apply the ban. 0 will default to perma-bans.");
         ShadowBan = InitConfigEntry("_Config", "ShadowBan", true,
             "If this is set to true, the player will never be notified that they are banned.");
         AdminImmune = InitConfigEntry("_Config", "AdminImmune", true,
@@ -41,28 +34,11 @@ public readonly struct Settings
         BanFilePath = InitConfigEntry("_Config", "BanFilePath", "save-data/Settings/banlist.txt",
             "The path from root to the banlist.txt file");
 
-        // MySQL DB
-        MySQLDbName = InitConfigEntry("ServerConnection", "MySQLDbName", "",
-            "The name of your MySQL database.");
-        Host = InitConfigEntry("ServerConnection", "Host", "",
-            "The host address of your MySQL database.");
-        Port = InitConfigEntry("ServerConnection", "Port", 3306,
-            "The port of your database server.");
-        UserName = InitConfigEntry("ServerConnection", "Username", "",
-            "The login username for your database.");
-        Password = InitConfigEntry("ServerConnection", "Password", "",
-            "The login password for your database.");
-
-        SyncInterval = InitConfigEntry("ServerConnection", "SyncInterval", 60,
+        if (Database.SQL != null)
+        {
+            SyncInterval = InitConfigEntry("ServerConnection", "SyncInterval", 60,
             "The interval in minutes to sync the database.");
-
-        if (
-            !string.IsNullOrEmpty(MySQLDbName.Value)
-            && !string.IsNullOrEmpty(Host.Value)
-            && Port.Value != 0
-            && !string.IsNullOrEmpty(UserName.Value)
-            && !string.IsNullOrEmpty(Password.Value)
-          ) MySQLConfigured = true;
+        }
     }
 
     static ConfigEntry<T> InitConfigEntry<T>(string section, string key, T defaultValue, string description)

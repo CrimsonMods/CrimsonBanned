@@ -1,4 +1,4 @@
-﻿`1.0.1`
+﻿`1.0.2`
 - Changes to how bans are triggered and cleared
 
 `1.0.1`

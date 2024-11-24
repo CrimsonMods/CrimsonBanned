@@ -28,7 +28,11 @@ public static class ChatMessagePatch
 
                 if (chatEventData.MessageType == ChatMessageType.System) continue;
 
-                if (Database.ChatBans.Exists(x => x.PlayerID == userData.PlatformId))
+                if (Database.Banned.Exists(x => x.PlayerID == userData.PlatformId))
+                {
+                    Core.Server.EntityManager.DestroyEntity(entity);
+                }
+                else if (Database.ChatBans.Exists(x => x.PlayerID == userData.PlatformId))
                 {
                     var ban = Database.ChatBans.First(x => x.PlayerID == userData.PlatformId);
 
