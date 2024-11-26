@@ -62,6 +62,12 @@ internal static class BanCommands
             return;
         }
 
+        if (playerInfo.User == ctx.User)
+        {
+            ctx.Reply("You cannot kick yourself.");
+            return;
+        }
+
         Kick(playerInfo);
     }
 

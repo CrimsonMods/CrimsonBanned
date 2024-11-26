@@ -37,14 +37,15 @@ public static class SQLlink
         string tableName = list == Database.ChatBans ? "Chat" :
                           list == Database.VoiceBans ? "Voice" : "Banned";
 
-        Database.SQL.Insert(tableName, values);
+        int i = Database.SQL.Insert(tableName, values);
+        if(i >= 0) ban.DatabaseId = i;
     }
 
     public static void DeleteBan(Ban ban, List<Ban> list)
     {
         var whereConditions = new Dictionary<string, object>
         {
-            ["PlayerID"] = ban.PlayerID
+            ["Id"] = ban.DatabaseId
         };
 
         string tableName = list == Database.ChatBans ? "Chat" :

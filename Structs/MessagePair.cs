@@ -18,7 +18,15 @@ public struct MessagePair
     public string ToString(Ban ban, BanDetails details = null)
     {
         string message = Value;
-        message = message.Replace("{player}", ban.PlayerName);
+        if (string.IsNullOrEmpty(ban.PlayerName))
+        {
+            message = message.Replace("{player}", "<i>Unknown</i>");
+        }
+        else
+        {
+            message = message.Replace("{player}", ban.PlayerName);
+        }
+        
         message = message.Replace("{id}", ban.PlayerID.ToString());
         message = message.Replace("{issued}", ban.Issued.ToString("MM/dd/yy HH:mm"));
         message = message.Replace("{reason}", ban.Reason);
