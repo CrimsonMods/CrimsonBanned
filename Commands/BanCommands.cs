@@ -1,11 +1,10 @@
 ﻿using CrimsonBanned.Structs;
+using CrimsonBanned.Utilities;
 using ProjectM;
 using ProjectM.Network;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Unity.Entities;
 using UnityEngine;
 using VampireCommandFramework;
@@ -17,29 +16,53 @@ namespace CrimsonBanned.Commands;
 internal static class BanCommands
 {
     [Command(name: "server", shortHand: "s", adminOnly: true)]
-    public static void Ban(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
+    public static void Ban(ChatCommandContext ctx, string name, int length = 0, string timeunit = "day", string reason = "")
     {
-        var result = HandleBanOperation(ctx, name, length, timeunit, Database.Banned, "banned", true);
-        if (result.Success) Core.StartCoroutine(DelayKick(result.PlayerInfo));
+        var result = HandleBanOperation(ctx, name, length, timeunit, Database.Banned, "banned", true, reason);
+        if (result.Success) 
+        {
+            Core.StartCoroutine(DelayKick(result.PlayerInfo));
+        }
     }
 
-    [Command(name: "chat", shortHand: "c", adminOnly: true)]
-    public static void BanFromChat(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
+    /*  I wish VCF supported overloading commands
+    [Command(name: "server", shortHand: "s", adminOnly: true)]
+    public static void Ban(ChatCommandContext ctx, string name, string reason = "")
     {
-        HandleBanOperation(ctx, name, length, timeunit, Database.ChatBans, "banned from chat");
+        var result = HandleBanOperation(ctx, name, 0, "day", Database.Banned, "banned", true, reason);
+        if(result.Success) Core.StartCoroutine(DelayKick(result.PlayerInfo));
+    }
+    */
+
+    [Command(name: "chat", shortHand: "c", adminOnly: true)]
+    public static void BanFromChat(ChatCommandContext ctx, string name, int length = 30, string timeunit = "min", string reason = "")
+    {
+        HandleBanOperation(ctx, name, length, timeunit, Database.ChatBans, "banned from chat", false, reason);
     }
 
     [Command(name: "voice", shortHand: "v", adminOnly: true)]
-    public static void BanFromVoice(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
+    public static void BanFromVoice(ChatCommandContext ctx, string name, int length = 30, string timeunit = "min", string reason = "")
     {
-        HandleBanOperation(ctx, name, length, timeunit, Database.VoiceBans, "banned from voice chat");
+        HandleBanOperation(ctx, name, length, timeunit, Database.VoiceBans, "banned from voice chat", false, reason);
     }
 
     [Command(name: "mute", shortHand: "m", adminOnly: true)]
-    public static void Mute(ChatCommandContext ctx, string name, int length = -1, string timeunit = "-", string reason = "")
+    public static void Mute(ChatCommandContext ctx, string name, int length = 30, string timeunit = "min", string reason = "")
     {
         BanFromChat(ctx, name, length, timeunit, reason);
         BanFromVoice(ctx, name, length, timeunit, reason);
+    }
+
+    [Command(name: "kick", shortHand: "k", adminOnly: true)]
+    public static void KickPlayer(ChatCommandContext ctx, string name)
+    {
+        if (!Extensions.TryGetPlayerInfo(name, out PlayerInfo playerInfo))
+        {
+            ctx.Reply($"Could not find player with the name {name}.");
+            return;
+        }
+
+        Kick(playerInfo);
     }
 
     private static (bool Success, PlayerInfo PlayerInfo) HandleBanOperation(ChatCommandContext ctx, string name, int length, string timeunit,
@@ -51,12 +74,15 @@ internal static class BanCommands
             return (false, null);
         }
 
-        if(length == -1) length = Settings.DefaultBanLength.Value;
-        if(timeunit == "-") timeunit = Settings.DefaultBanDenomination.Value;
-
-        if(playerInfo.User.IsAdmin && Settings.AdminImmune.Value)
+        if (playerInfo.User.IsAdmin)
         {
             ctx.Reply("You cannot ban an admin."); return (false, null);
+        }
+
+        if (playerInfo.User == ctx.User)
+        {
+            ctx.Reply("You cannot ban yourself.");
+            return (false, null);
         }
 
         if (length < 0)
@@ -65,10 +91,10 @@ internal static class BanCommands
             return (false, null);
         }
 
-        var timeSpan = LengthParse(length, timeunit);
+        var timeSpan = TimeUtility.LengthParse(length, timeunit);
         var bannedTime = DateTime.Now + timeSpan;
 
-        if(length == 0) bannedTime = DateTime.MinValue;
+        if (length == 0) bannedTime = DateTime.MinValue;
 
         if (banList.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
         {
@@ -76,16 +102,17 @@ internal static class BanCommands
             return (false, null);
         }
 
-        Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime, reason);
+        Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime, reason, ctx.User.CharacterName.ToString());
+        ban.LocalBan = true;
         Database.AddBan(ban, banList);
 
-        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {timeSpan}")}");
+        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
 
         if (!Settings.ShadowBan.Value || isGameBan)
         {
             var message = isGameBan ?
-                $"You have been {banType} {(length == 0 ? "permanent" : $"for {timeSpan}")}. You will be kicked in 5 seconds." :
-                $"You have been {banType} {(length == 0 ? "permanent" : $"for {timeSpan}")}";
+                $"You have been {banType} {(length == 0 ? "permanently." : $"for {TimeUtility.FormatRemainder(timeSpan)}")}. You will be kicked in 5 seconds." :
+                $"You have been {banType} {(length == 0 ? "permanently." : $"for {TimeUtility.FormatRemainder(timeSpan)}")}.";
 
             ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, playerInfo.User, message);
         }
@@ -97,10 +124,15 @@ internal static class BanCommands
     {
         yield return new WaitForSeconds(5);
 
+        Kick(player);
+    }
+
+    private static void Kick(PlayerInfo player)
+    {
         EntityManager entityManager = Core.Server.EntityManager;
         User user = player.User;
 
-        if (user.PlatformId == 0) yield break;
+        if (user.PlatformId == 0) return;
 
         Entity entity = entityManager.CreateEntity(new ComponentType[3]
         {
@@ -122,37 +154,5 @@ internal static class BanCommands
             IsAdminEvent = false,
             IsDebugEvent = false
         });
-
-        if (File.Exists(Settings.BanFilePath.Value))
-        {
-            File.AppendAllText(Settings.BanFilePath.Value, user.PlatformId.ToString() + Environment.NewLine);
-        }
     }
-
-    private static TimeSpan LengthParse(int length, string denomination)
-    {
-        denomination = denomination.ToLower();
-
-        var minuteAliases = new[] { "minute", "minutes", "min", "mins", "m" };
-        var hourAliases = new[] { "hour", "hours", "hrs", "hr", "h" };
-        var dayAliases = new[] { "day", "days", "d" };
-
-        if (minuteAliases.Contains(denomination))
-            denomination = "m";
-        else if (hourAliases.Contains(denomination))
-            denomination = "h";
-        else if (dayAliases.Contains(denomination))
-            denomination = "d";
-        else
-            denomination = "m";
-
-        return denomination switch
-        {
-            "m" => TimeSpan.FromMinutes(length),
-            "h" => TimeSpan.FromHours(length),
-            "d" => TimeSpan.FromDays(length),
-            _ => TimeSpan.FromMinutes(length)
-        };
-    }
-
 }

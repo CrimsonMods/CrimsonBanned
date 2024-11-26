@@ -1,6 +1,5 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
-using ProjectM.UI;
 using System.Collections.Generic;
 using System.IO;
 
@@ -8,12 +7,12 @@ namespace CrimsonBanned.Structs;
 
 public readonly struct Settings
 {
+    private const string ConfigHeader = "_Config";
+    private const string ServerHeader = "ServerConnection";
     public static ConfigEntry<bool> ShadowBan { get; private set; }
-    public static ConfigEntry<int> DefaultBanLength { get; private set; }
-    public static ConfigEntry<string> DefaultBanDenomination { get; private set; }
-    public static ConfigEntry<bool> AdminImmune { get; private set; }
     public static ConfigEntry<string> BanFilePath { get; private set; }
 
+    public static ConfigEntry<bool> UseSQL { get; private set; }
     public static ConfigEntry<int> SyncInterval { get; private set; }
 
     public static void InitConfig()
@@ -23,21 +22,17 @@ public readonly struct Settings
             CreateDirectories(path);
         }
 
-        DefaultBanDenomination = InitConfigEntry("_Config", "DefaultUnitOfTime", "minute",
-        "Valid Options: day, hour, minute");
-        DefaultBanLength = InitConfigEntry("_Config", "DefaultBanLength", 30,
-        "The length of the chosen unit of time to apply the ban. 0 will default to perma-bans.");
-        ShadowBan = InitConfigEntry("_Config", "ShadowBan", true,
-            "If this is set to true, the player will never be notified that they are banned.");
-        AdminImmune = InitConfigEntry("_Config", "AdminImmune", true,
-            "If this is set to true, admins will be immune to bans.");
-        BanFilePath = InitConfigEntry("_Config", "BanFilePath", "save-data/Settings/banlist.txt",
+        ShadowBan = InitConfigEntry(ConfigHeader, "ShadowBan", true,
+            "If this is set to true, the player will never be notified when chat or voice banned.");
+        BanFilePath = InitConfigEntry(ConfigHeader, "BanFilePath", "save-data/Settings/banlist.txt",
             "The path from root to the banlist.txt file");
 
         if (Database.SQL != null)
         {
-            SyncInterval = InitConfigEntry("ServerConnection", "SyncInterval", 60,
-            "The interval in minutes to sync the database.");
+            UseSQL = InitConfigEntry(ServerHeader, "UseSQL", false,
+                "If this is set to true, the plugin will use CrimsonSQL to store bans.");
+            SyncInterval = InitConfigEntry(ServerHeader, "SyncInterval", 60,
+                "The interval in minutes to sync the database.");
         }
     }
 

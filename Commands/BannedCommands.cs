@@ -1,10 +1,8 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using CrimsonBanned.Structs;
-using Unity.Collections;
 using VampireCommandFramework;
 using static CrimsonBanned.Services.PlayerService;
 
@@ -21,8 +19,11 @@ internal static class BannedCommands
         List<Ban> bans = listName switch
         {
             "server" => Database.Banned,
+            "s" => Database.Banned,
             "chat" => Database.ChatBans,
+            "c" => Database.ChatBans,
             "voice" => Database.VoiceBans,
+            "v" => Database.VoiceBans,
             _ => []
         };
 
@@ -33,7 +34,7 @@ internal static class BannedCommands
 
         foreach (var user in bans)
         {
-            s += $"{user.PlayerName} - {user.TimeUntil - DateTime.Now}\n";
+            s += Database.Messages[2].ToString(user, null);
 
             if (messages[currentMessageIndex].Length + s.Length > MESSAGE_LIMIT)
             {
@@ -74,7 +75,8 @@ internal static class BannedCommands
             {
                 if (Database.Banned.Exists(x => x.PlayerID == Convert.ToUInt64(line))) continue;
 
-                Ban ban = new Ban("unknown", Convert.ToUInt64(line), DateTime.MinValue, "Synced from local banlist.txt file.");
+                Ban ban = new Ban(string.Empty, Convert.ToUInt64(line), DateTime.MinValue, "Synced from local banlist.txt file.", "banlist.txt");
+                ban.LocalBan = true;
                 Database.AddBan(ban, Database.Banned);
             }
 
@@ -86,6 +88,30 @@ internal static class BannedCommands
         }
     }
 
+    [Command(name: "sync", adminOnly: true)]
+    public static void Sync(ChatCommandContext ctx)
+    {
+        if (Database.SQL == null)
+        {
+            ctx.Reply("MySQL is not configured. Please configure MySQL using CrimsonSQL.");
+            return;
+        }
+
+        Database.SyncDB();
+    }
+
+    [Command(name: "checkid", adminOnly: true)]
+    public static void CheckID(ChatCommandContext ctx, string id)
+    {
+        if (!Extensions.TryGetPlayerInfo(id, out PlayerInfo playerInfo))
+        {
+            ctx.Reply($"Could not find player with the ID {id}");
+            return;
+        }
+
+        Check(ctx, playerInfo.User.CharacterName.ToString());
+    }
+
     [Command(name: "check", adminOnly: true)]
     public static void Check(ChatCommandContext ctx, string name)
     {
@@ -95,27 +121,32 @@ internal static class BannedCommands
             return;
         }
 
-        List<(string, string)> playerBans = new List<(string, string)>();
+        List<(Ban, BanDetails)> playerBans = new List<(Ban, BanDetails)>();
 
-        if (Database.ChatBans.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
+        List<Ban> allBans = new List<Ban>
         {
-            Ban ban = Database.ChatBans.Find(x => x.PlayerID == playerInfo.User.PlatformId);
-            (string, string) m = AddBanMessage("Chat", ban, Database.ChatBans);
-            if(m.Item1 != "Removed") playerBans.Add(m);
-        }
+            Database.ChatBans.Find(x => x.PlayerID == playerInfo.User.PlatformId),
+            Database.VoiceBans.Find(x => x.PlayerID == playerInfo.User.PlatformId),
+            Database.Banned.Find(x => x.PlayerID == playerInfo.User.PlatformId)
+        };
 
-        if (Database.VoiceBans.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
+        foreach (var ban in allBans)
         {
-            Ban ban = Database.VoiceBans.Find(x => x.PlayerID == playerInfo.User.PlatformId);
-            (string, string) m = AddBanMessage("Voice", ban, Database.VoiceBans);
-            if(m.Item1 != "Removed") playerBans.Add(m);
-        }
+            if (ban != null)
+            {
+                var list = ban switch
+                {
+                    var b when Database.Banned.Contains(b) => Database.Banned,
+                    var b when Database.ChatBans.Contains(b) => Database.ChatBans,
+                    var b when Database.VoiceBans.Contains(b) => Database.VoiceBans,
+                    _ => null
+                };
 
-        if (Database.Banned.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
-        {
-            Ban ban = Database.Banned.Find(x => x.PlayerID == playerInfo.User.PlatformId);
-            (string, string) m = AddBanMessage("Server", ban, Database.Banned);
-            if(m.Item1 != "Removed") playerBans.Add(m);
+                if (list != null && GetBanDetails(ban, list, out BanDetails details))
+                {
+                    playerBans.Add((ban, details));
+                }
+            }
         }
 
         if (playerBans.Count == 0)
@@ -125,32 +156,58 @@ internal static class BannedCommands
         }
 
         StringBuilder banList = new StringBuilder();
-        banList.AppendLine($"\n{playerInfo.User.CharacterName.ToString()}'s Bans:");
-
+        banList.AppendLine(Database.Messages[0].ToString(playerBans[0].Item1, playerBans[1].Item2));
         foreach (var ban in playerBans)
         {
-            banList.AppendLine($"{ban.Item1} - {ban.Item2}");
+            banList.AppendLine(Database.Messages[1].ToString(ban.Item1, ban.Item2));
         }
 
         ctx.Reply(banList.ToString());
     }
 
-    static (string, string) AddBanMessage(string banType, Ban ban, List<Ban> banList)
+    internal static bool GetBanDetails(Ban ban, List<Ban> list, out BanDetails details)
     {
-        (string, string) message = (banType, "");
+        if (DateTime.Now > ban.TimeUntil)
+        {
+            details = null;
+            Database.DeleteBan(ban, list);
+            return false;
+        }
+
+        details = new BanDetails();
+        details.Ban = ban;
+        details.IssuedOn = ban.Issued.ToString("MM/dd/yy HH:mm");
+
+        switch (list)
+        {
+            case var _ when list == Database.Banned:
+                details.BanType = "Server";
+                break;
+            case var _ when list == Database.ChatBans:
+                details.BanType = "Chat";
+                break;
+            case var _ when list == Database.VoiceBans:
+                details.BanType = "Voice";
+                break;
+        }
+
         if (ban.TimeUntil == DateTime.MinValue)
         {
-            message.Item2 = "Permanent";
-        }
-        else if (DateTime.Now > ban.TimeUntil)
-        {
-            Database.DeleteBan(ban, banList);
-            return ("Removed", "");
+            details.RemainingTime = "Permanent";
         }
         else
         {
-            message.Item2 = $"Expires in {ban.TimeUntil - DateTime.Now}";
+            details.RemainingTime = $"Expires in {ban.TimeUntil - DateTime.Now}";
         }
-        return message;
+
+        return true;
     }
+}
+
+public class BanDetails
+{
+    public Ban Ban { get; set; }
+    public string BanType { get; set; }
+    public string IssuedOn { get; set; }
+    public string RemainingTime { get; set; }
 }

@@ -9,24 +9,17 @@ public class Ban
     public ulong PlayerID { get; set; }
     public DateTime TimeUntil { get; set; }
     public string Reason { get; set; }
+    public string IssuedBy { get; set; }
+    public DateTime Issued { get; set; }
+    public int DatabaseId { get; set; } = 0;
+    public bool LocalBan { get; set; } = false;
 
-    public Ban(string playerName, ulong playerID, DateTime timeUntil, string reason)
+    public Ban(string playerName, ulong playerID, DateTime timeUntil, string reason, string IssuedBy)
     {
         PlayerName = playerName;
         PlayerID = playerID;
         TimeUntil = timeUntil;
         Reason = reason;
-    }
-}
-
-public class BansContainer
-{
-    public List<Ban> ChatBans { get; set; }
-    public List<Ban> VoiceBans { get; set; }
-
-    public BansContainer(List<Ban> _chats, List<Ban> _voices)
-    {
-        ChatBans = _chats;
-        VoiceBans = _voices;
+        Issued = DateTime.Now;
     }
 }

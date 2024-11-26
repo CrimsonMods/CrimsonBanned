@@ -25,12 +25,14 @@ internal class Database
     public static string BannedFile = Path.Combine(Plugin.ConfigFiles, "banned.json");
     public static string ChatBanFile = Path.Combine(Plugin.ConfigFiles, "bans_chat.json");
     public static string VoiceBanFile = Path.Combine(Plugin.ConfigFiles, "bans_voice.json");
+    public static string MessageFile = Path.Combine(Plugin.ConfigFiles, "messages.json");
 
     public static List<Ban> Banned;
     public static List<Ban> ChatBans;
     public static List<Ban> VoiceBans;
+    public static List<MessagePair> Messages;
 
-    public static ISQLService SQL => IL2CPPChainloader.Instance.Plugins.TryGetValue("CrimsonSQL", out var pluginInfo) 
+    public static ISQLService SQL => IL2CPPChainloader.Instance.Plugins.TryGetValue("CrimsonSQL", out var pluginInfo)
     ? CrimsonSQL.Plugin.SQLService
     : null;
 
@@ -73,10 +75,30 @@ internal class Database
             Banned = new List<Ban>();
         }
 
-        if(SQL != null)
+        if(File.Exists(MessageFile))
+        {
+            string json = File.ReadAllText(MessageFile);
+            Messages = JsonSerializer.Deserialize<List<MessagePair>>(json, prettyJsonOptions);
+        }
+        else
+        {
+            Messages =
+            [
+                new MessagePair("CheckHeader", "\n{player}'s ({id}) Bans:"),
+                new MessagePair("CheckBanLine", "\n{type} Ban\nIssued: {issued}\nRemaining: {remaining}\nReason: {reason}"),
+                new MessagePair("ListBan", "\n{player} ({id}) - {remaining}")
+            ];
+
+            string json = JsonSerializer.Serialize(Messages, prettyJsonOptions);
+            File.WriteAllText(MessageFile, json);
+        }
+
+        if (SQL != null && Settings.UseSQL.Value)
         {
             StartSQLConnection();
         }
+
+        Core.StartCoroutine(Clean());
     }
 
     private static async void StartSQLConnection()
@@ -101,9 +123,13 @@ internal class Database
         else
         {
             Banned.Add(ban);
+            if (File.Exists(Settings.BanFilePath.Value))
+            {
+                File.AppendAllText(Settings.BanFilePath.Value, ban.PlayerID + Environment.NewLine);
+            }
         }
 
-        if(SQL != null)
+        if (SQL != null && Settings.UseSQL.Value)
         {
             SQLlink.AddBan(ban, list);
         }
@@ -133,7 +159,7 @@ internal class Database
             }
         }
 
-        if(SQL != null)
+        if (SQL != null && Settings.UseSQL.Value)
         {
             SQLlink.DeleteBan(ban, list);
         }
@@ -168,18 +194,36 @@ internal class Database
         SyncTable(VoiceBans, "Voice");
         SyncTable(Banned, "Banned");
     }
-
     private static void SyncTable(List<Ban> list, string tableName)
     {
         DataTable table = SQL.Select(tableName);
+
+        // Create a set of PlayerIDs from the database for efficient lookup
+        var dbPlayerIds = new HashSet<ulong>(
+            table.Rows.Cast<DataRow>()
+            .Select(row => Convert.ToUInt64(row["PlayerID"]))
+        );
+
+        var removedBans = list.Where(ban => !dbPlayerIds.Contains(ban.PlayerID)).ToList();
+        list.RemoveAll(ban => !dbPlayerIds.Contains(ban.PlayerID));
+        if(list == Banned)
+        {
+            BanListFix(removedBans);
+        }
+
+        // Add missing entries from database
         foreach (DataRow row in table.Rows)
         {
             Ban ban = new Ban(
                 row["PlayerName"].ToString(),
                 Convert.ToUInt64(row["PlayerID"]),
                 Convert.ToDateTime(row["TimeUntil"]),
-                row["Reason"].ToString()
+                row["Reason"].ToString(),
+                row["IssuedBy"].ToString()
             );
+
+            ban.Issued = Convert.ToDateTime(row["Issued"]);
+            ban.DatabaseId = Convert.ToInt32(row["DatabaseId"]);
 
             if (!list.Exists(x => x.PlayerID == ban.PlayerID))
             {
@@ -187,43 +231,83 @@ internal class Database
 
                 if (list == Banned)
                 {
-                    if (File.Exists(Settings.BanFilePath.Value))
+                    if (Extensions.TryGetPlayerInfo(ban.PlayerID, out PlayerInfo player))
                     {
-                        if (Extensions.TryGetPlayerInfo(ban.PlayerID, out PlayerInfo player))
+                        if (player.User.IsConnected)
                         {
-                            if (player.User.IsConnected)
-                            {
-                                Core.StartCoroutine(BanCommands.DelayKick(player));
-                            }
+                            Core.StartCoroutine(BanCommands.DelayKick(player));
                         }
-                        File.AppendAllText(Settings.BanFilePath.Value, ban.PlayerID.ToString() + Environment.NewLine);
                     }
+                    if (File.Exists(Settings.BanFilePath.Value))
+                        File.AppendAllText(Settings.BanFilePath.Value, ban.PlayerID.ToString() + Environment.NewLine);
                 }
             }
         }
+
+        SaveDatabases();
     }
 
     static IEnumerator SyncLoop()
     {
         while (true)
         {
-            var expiredBans = Banned
+            BanListFix();
+            yield return new WaitForSeconds(Settings.SyncInterval.Value * 60 + UnityEngine.Random.Range(-10, 20));
+            SyncDB();
+        }
+    }
+
+    private static void BanListFix(List<Ban> additional = null)
+    {
+        var expiredBans = Banned
                 .Where(ban => ban.TimeUntil != DateTime.MinValue && ban.TimeUntil < DateTime.Now)
                 .ToList();
 
-            foreach (var ban in expiredBans)
+        if (additional != null) expiredBans = expiredBans.Concat(additional).ToList();
+        foreach (var ban in expiredBans)
+        {
+            DeleteBan(ban, Banned);
+            if (File.Exists(Settings.BanFilePath.Value))
             {
-                DeleteBan(ban, Banned);
-                if (File.Exists(Settings.BanFilePath.Value))
+                var lines = File.ReadAllLines(Settings.BanFilePath.Value).ToList();
+                lines.RemoveAll(line => line.Trim() == ban.PlayerID.ToString());
+                File.WriteAllLines(Settings.BanFilePath.Value, lines);
+            }
+        }
+    }
+
+    static IEnumerator Clean()
+    {
+        while(true)
+        {
+            yield return new WaitForSeconds(60);
+
+            foreach(var ban in Banned)
+            {
+                if(ban.TimeUntil == DateTime.MinValue) continue;
+                if(ban.TimeUntil < DateTime.Now)
                 {
-                    var lines = File.ReadAllLines(Settings.BanFilePath.Value).ToList();
-                    lines.RemoveAll(line => line.Trim() == ban.PlayerID.ToString());
-                    File.WriteAllLines(Settings.BanFilePath.Value, lines);
+                    DeleteBan(ban, Banned);
                 }
             }
 
-            yield return new WaitForSeconds(Settings.SyncInterval.Value * 60 + UnityEngine.Random.Range(-10, 20));
-            SyncDB();
+            foreach(var ban in ChatBans)
+            {
+                if(ban.TimeUntil == DateTime.MinValue) continue;
+                if (ban.TimeUntil < DateTime.Now)
+                {
+                    DeleteBan(ban, ChatBans);
+                }
+            }
+
+            foreach (var ban in VoiceBans)
+            {
+                if(ban.TimeUntil == DateTime.MinValue) continue;
+                if (ban.TimeUntil < DateTime.Now)
+                {
+                    DeleteBan(ban, VoiceBans);
+                }
+            }
         }
     }
 }

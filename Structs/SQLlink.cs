@@ -12,7 +12,9 @@ public static class SQLlink
             ["PlayerName"] = "VARCHAR(255) NOT NULL",
             ["PlayerID"] = "BIGINT UNSIGNED NOT NULL",
             ["TimeUntil"] = "DATETIME NOT NULL",
-            ["Reason"] = "TEXT"
+            ["Reason"] = "TEXT",
+            ["Issued"] = "DATETIME NOT NULL",
+            ["IssuedBy"] = "VARCHAR(255) NOT NULL"
         };
 
         Database.SQL.CreateTable("Banned", columns);
@@ -27,7 +29,9 @@ public static class SQLlink
             ["PlayerName"] = ban.PlayerName,
             ["PlayerID"] = ban.PlayerID,
             ["TimeUntil"] = ban.TimeUntil,
-            ["Reason"] = ban.Reason
+            ["Reason"] = ban.Reason,
+            ["Issued"] = ban.Issued,
+            ["IssuedBy"] = ban.IssuedBy
         };
 
         string tableName = list == Database.ChatBans ? "Chat" :
