@@ -32,7 +32,7 @@ internal class Database
     public static List<MessagePair> Messages;
 
     public static dynamic SQL => IL2CPPChainloader.Instance.Plugins.TryGetValue("CrimsonSQL", out var pluginInfo)
-        ? CrimsonSQL.Plugin.SQLService
+        ? pluginInfo.Instance.GetType().GetProperty("SQLService").GetValue(pluginInfo.Instance)
         : null;
 
     public Database()
