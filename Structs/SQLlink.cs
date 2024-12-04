@@ -15,9 +15,9 @@ public static class SQLlink
             ["Id"] = "INT AUTO_INCREMENT PRIMARY KEY",
             ["PlayerName"] = "VARCHAR(255)",
             ["PlayerID"] = "BIGINT UNSIGNED NOT NULL UNIQUE",
-            ["TimeUntil"] = "DATETIME NOT NULL DEFAULT UTC_TIMESTAMP()",
+            ["TimeUntil"] = "DATETIME NOT NULL",
             ["Reason"] = "TEXT",
-            ["Issued"] = "DATETIME NOT NULL DEFAULT UTC_TIMESTAMP()",
+            ["Issued"] = "DATETIME NOT NULL",
             ["IssuedBy"] = "VARCHAR(255)"
         };
         Database.SQL.CreateTable("Banned", columns);
