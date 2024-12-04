@@ -44,6 +44,9 @@
       <EmbeddedResource Include="$(NuGetPackageRoot)system.text.encoding.codepages\*\lib\net6.0\System.Text.Encoding.CodePages.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="CrimsonLog">
+      <HintPath>..\CrimsonLog\bin\Debug\net6.0\CrimsonLog.dll</HintPath>
+    </Reference>
     <Reference Include="CrimsonSQL">
       <HintPath>..\CrimsonSQL\bin\Debug\net6.0\CrimsonSQL.dll</HintPath>
     </Reference>

@@ -18,8 +18,8 @@ internal static class BanCommands
     [Command(name: "server", shortHand: "s", adminOnly: true)]
     public static void Ban(ChatCommandContext ctx, string name, int length = 0, string timeunit = "day", string reason = "")
     {
-        var result = HandleBanOperation(ctx, name, length, timeunit, Database.Banned, "banned", true, reason);
-        if (result.Success) 
+        var result = HandleBanOperation(ctx, name, length, timeunit, Database.Banned, "banned from the server", true, reason);
+        if (result.Success)
         {
             Core.StartCoroutine(DelayKick(result.PlayerInfo));
         }
@@ -100,6 +100,8 @@ internal static class BanCommands
         var timeSpan = TimeUtility.LengthParse(length, timeunit);
         var bannedTime = DateTime.Now + timeSpan;
 
+        if (reason == "") reason = "(None Provided)";
+
         if (length == 0) bannedTime = DateTime.MinValue;
 
         if (banList.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
@@ -108,8 +110,35 @@ internal static class BanCommands
             return (false, null);
         }
 
-        Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime, reason, ctx.User.CharacterName.ToString());
+        Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime.ToUniversalTime(), reason, ctx.User.CharacterName.ToString());
         ban.LocalBan = true;
+
+        if (Database.SQL != null && Settings.UseSQL.Value && SQLlink.Connect())
+        {
+            int response = SQLlink.AddBan(ban, banList);
+            if (response >= 0)
+            {
+                ban.DatabaseId = response;
+            }
+            else
+            {
+                if (SQLlink.ResolveConflict(ban, banList))
+                {
+                    ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
+                    return (true, playerInfo);
+                }
+                else
+                {
+                    ctx.Reply($"{name} has had their previous ban imported from SQL with a longer duration.");
+                    return (true, playerInfo);
+                }
+            }
+        }
+        else
+        {
+            ban.DatabaseId = -1;
+        }
+
         Database.AddBan(ban, banList);
 
         ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");

@@ -12,22 +12,57 @@ namespace CrimsonBanned.Commands;
 internal static class BannedCommands
 {
     const int MESSAGE_LIMIT = 508 - 26 - 2 - 20;
+    const int MESSAGES_PER_PAGE = 2;
 
     [Command(name: "list", shortHand: "l", adminOnly: true)]
-    public static void List(ChatCommandContext ctx, string listName = "server")
+    public static void List(ChatCommandContext ctx, string banType = "server" , string show = "perma/temp", int page = 1)
     {
-        List<Ban> bans = listName switch
+        banType = banType.ToLower() switch
         {
-            "server" => Database.Banned,
-            "s" => Database.Banned,
-            "chat" => Database.ChatBans,
-            "c" => Database.ChatBans,
-            "voice" => Database.VoiceBans,
-            "v" => Database.VoiceBans,
+            "server" => "Server",
+            "s" => "Server",
+            "chat" => "Chat",
+            "c" => "Chat",
+            "voice" => "Voice",
+            "v" => "Voice",
+            _ => "Server"
+        };
+
+        List<Ban> bans = banType switch
+        {
+            "Server" => Database.Banned,
+            "Chat" => Database.ChatBans,
+            "Voice" => Database.VoiceBans,
             _ => []
         };
 
-        string s = "";
+        show = show switch
+        {
+            "perma" => "perma",
+            "temp" => "temp",
+            "p" => "perma",
+            "t" => "temp",
+            _ => "perma/temp"
+        };
+
+        if (show == "temp")
+        {
+            bans = bans.FindAll(x => x.TimeUntil != DateTime.MinValue);
+        }
+        else if (show == "perma")
+        {
+            bans = bans.FindAll(x => x.TimeUntil == DateTime.MinValue);
+        }
+
+        if (bans.Count == 0)
+        {
+            ctx.Reply("No players in this ban list.");
+            return;
+        }
+
+        bans.Sort((x, y) => y.Issued.CompareTo(x.Issued));                
+        
+        string s = $"{banType} Bans:\n";
 
         List<string> messages = new() { s };
         int currentMessageIndex = 0;
@@ -47,13 +82,19 @@ internal static class BannedCommands
             }
         }
 
-        if (bans.Count == 0)
-        {
-            ctx.Reply("No players in this ban list.");
-            return;
-        }
+        int totalPages = (int)Math.Ceiling((double)messages.Count / MESSAGES_PER_PAGE);
 
-        foreach (var message in messages) ctx.Reply(message);
+        // always default to page 1 if requested page is invalid
+        if(page < 1 || page > totalPages) page = 1;
+
+        int startIndex = (page - 1) * MESSAGES_PER_PAGE;
+        int endIndex = Math.Min(startIndex + MESSAGES_PER_PAGE, messages.Count);
+
+        if(totalPages > 1) ctx.Reply($"Page {page} of {totalPages}:");
+        for(int i = startIndex; i < endIndex; i++)
+        {
+            ctx.Reply(messages[i]);
+        }
     }
 
     [Command(name: "loaduntracked", adminOnly: true)]
@@ -62,6 +103,18 @@ internal static class BannedCommands
         if (Database.SQL == null)
         {
             ctx.Reply("MySQL is not configured. Please configure MySQL using CrimsonSQL.");
+            return;
+        }
+
+        if (!Settings.UseSQL.Value)
+        {
+            ctx.Reply("You are not using CrimsonSQL. Ensure it is installed and the setting is set to true.");
+            return;
+        }
+
+        if (!SQLlink.Connect())
+        {
+            ctx.Reply("Connection could not be established with the SQL database.");
             return;
         }
 
@@ -97,19 +150,78 @@ internal static class BannedCommands
             return;
         }
 
+        if (!Settings.UseSQL.Value)
+        {
+            ctx.Reply("You are not using CrimsonSQL. Ensure it is installed and the setting is set to true.");
+            return;
+        }
+
+        if (!SQLlink.Connect())
+        {
+            ctx.Reply("Connection could not be established with the SQL database.");
+            return;
+        }
+
         Database.SyncDB();
+
+        ctx.Reply("SQL Database synced.");
     }
 
     [Command(name: "checkid", adminOnly: true)]
     public static void CheckID(ChatCommandContext ctx, string id)
     {
-        if (!Extensions.TryGetPlayerInfo(id, out PlayerInfo playerInfo))
+        ulong ID = Convert.ToUInt64(id);
+        List<(Ban, BanDetails)> playerBans = new List<(Ban, BanDetails)>();
+
+        List<Ban> allBans = new List<Ban>
         {
-            ctx.Reply($"Could not find player with the ID {id}");
+            Database.ChatBans.Find(x => x.PlayerID == ID),
+            Database.VoiceBans.Find(x => x.PlayerID == ID),
+            Database.Banned.Find(x => x.PlayerID == ID)
+        };
+
+        bool ContainsNonLocal = false;
+        foreach (var ban in allBans)
+        {
+            if(!ban.LocalBan) ContainsNonLocal = true;
+            if (ban != null)
+            {
+                var list = ban switch
+                {
+                    var b when Database.Banned.Contains(b) => Database.Banned,
+                    var b when Database.ChatBans.Contains(b) => Database.ChatBans,
+                    var b when Database.VoiceBans.Contains(b) => Database.VoiceBans,
+                    _ => null
+                };
+
+                if (list != null && GetBanDetails(ban, list, out BanDetails details))
+                {
+                    playerBans.Add((ban, details));
+                }
+            }
+        }
+
+        if (playerBans.Count == 0)
+        {
+            ctx.Reply($"{id} is not banned.");
             return;
         }
 
-        Check(ctx, playerInfo.User.CharacterName.ToString());
+        string localName = string.Empty;
+        if (Extensions.TryGetPlayerInfo(ID, out PlayerInfo playerInfo) && ContainsNonLocal)
+        {
+            localName = playerInfo.User.CharacterName.ToString();
+        }
+
+        StringBuilder banList = new StringBuilder();
+        banList.AppendLine(Database.Messages[0].ToString(playerBans[0].Item1, playerBans[0].Item2));
+        banList.AppendLine($"Local server name: {localName}");
+        foreach (var ban in playerBans)
+        {
+            banList.AppendLine(Database.Messages[1].ToString(ban.Item1, ban.Item2));
+        }
+
+        ctx.Reply(banList.ToString());
     }
 
     [Command(name: "check", adminOnly: true)]
@@ -156,7 +268,7 @@ internal static class BannedCommands
         }
 
         StringBuilder banList = new StringBuilder();
-        banList.AppendLine(Database.Messages[0].ToString(playerBans[0].Item1, playerBans[1].Item2));
+        banList.AppendLine(Database.Messages[0].ToString(playerBans[0].Item1, playerBans[0].Item2));
         foreach (var ban in playerBans)
         {
             banList.AppendLine(Database.Messages[1].ToString(ban.Item1, ban.Item2));
@@ -167,7 +279,7 @@ internal static class BannedCommands
 
     internal static bool GetBanDetails(Ban ban, List<Ban> list, out BanDetails details)
     {
-        if (DateTime.Now > ban.TimeUntil)
+        if (DateTime.Now > ban.TimeUntil.ToLocalTime())
         {
             details = null;
             Database.DeleteBan(ban, list);
@@ -176,7 +288,7 @@ internal static class BannedCommands
 
         details = new BanDetails();
         details.Ban = ban;
-        details.IssuedOn = ban.Issued.ToString("MM/dd/yy HH:mm");
+        details.IssuedOn = ban.Issued.ToLocalTime().ToString("MM/dd/yy HH:mm");
 
         switch (list)
         {
@@ -197,7 +309,7 @@ internal static class BannedCommands
         }
         else
         {
-            details.RemainingTime = $"Expires in {ban.TimeUntil - DateTime.Now}";
+            details.RemainingTime = $"Expires in {ban.TimeUntil.ToLocalTime() - DateTime.Now}";
         }
 
         return true;

@@ -14,7 +14,7 @@ internal static class BanIDCommands
     {
         if(!Extensions.TryGetPlayerInfo(id, out var playerInfo))
         {
-            HandleBanOperation(ctx, id, length, timeunit, Database.Banned, "banned", true, reason);
+            HandleBanOperation(ctx, id, length, timeunit, Database.Banned, "banned from the server", true, reason);
         }
         else
         {
@@ -71,9 +71,12 @@ internal static class BanIDCommands
             ctx.Reply("Please input a valid length of time.");
             return;
         }
+
         if(length == 0) bannedTime = DateTime.MinValue;
 
-        var ban = new Ban(string.Empty, id, bannedTime, reason, ctx.User.CharacterName.ToString());
+        if(reason == "") reason = "(None Provided)";
+
+        var ban = new Ban(string.Empty, id, bannedTime.ToUniversalTime(), reason, ctx.User.CharacterName.ToString());
 
         Database.AddBan(ban, list);
         ctx.Reply($"Player {id} has been {banType}.");

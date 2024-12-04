@@ -2,7 +2,6 @@ using System;
 using CrimsonBanned.Commands;
 using CrimsonBanned.Structs;
 using CrimsonBanned.Utilities;
-using static CrimsonBanned.Services.PlayerService;
 
 public struct MessagePair
 {
@@ -28,7 +27,7 @@ public struct MessagePair
         }
         
         message = message.Replace("{id}", ban.PlayerID.ToString());
-        message = message.Replace("{issued}", ban.Issued.ToString("MM/dd/yy HH:mm"));
+        message = message.Replace("{issued}", ban.Issued.ToLocalTime().ToString("MM/dd/yy HH:mm"));
         message = message.Replace("{reason}", ban.Reason);
         message = message.Replace("{by}", ban.IssuedBy);
         message = message.Replace("{local}", ban.LocalBan.ToString());
@@ -49,8 +48,8 @@ public struct MessagePair
         }
         else
         {
-            message = message.Replace("{until}", ban.TimeUntil.ToString("MM/dd/yy HH:mm"));
-            message = message.Replace("{remainder}", TimeUtility.FormatRemainder(ban.TimeUntil));
+            message = message.Replace("{until}", ban.TimeUntil.ToLocalTime().ToString("MM/dd/yy HH:mm"));
+            message = message.Replace("{remainder}", TimeUtility.FormatRemainder(ban.TimeUntil.ToLocalTime()));
         }
 
         return message;

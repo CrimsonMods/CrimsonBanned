@@ -14,12 +14,13 @@ public class Ban
     public int DatabaseId { get; set; } = 0;
     public bool LocalBan { get; set; } = false;
 
-    public Ban(string playerName, ulong playerID, DateTime timeUntil, string reason, string IssuedBy)
+    public Ban(string playerName, ulong playerID, DateTime timeUntil, string reason, string issuedBy)
     {
         PlayerName = playerName;
         PlayerID = playerID;
         TimeUntil = timeUntil;
         Reason = reason;
-        Issued = DateTime.Now;
+        Issued = DateTime.Now.ToUniversalTime();
+        IssuedBy = issuedBy;
     }
 }

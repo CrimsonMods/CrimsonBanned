@@ -40,16 +40,17 @@ public static class VivoxPatch
         if (Database.VoiceBans.Exists(x => x.PlayerID == user.PlatformId))
         {
             var ban = Database.VoiceBans.First(x => x.PlayerID == user.PlatformId);
- 
-            if(DateTime.Now > ban.TimeUntil && ban.TimeUntil != DateTime.MinValue)
+
+            if (DateTime.Now > ban.TimeUntil.ToLocalTime() && ban.TimeUntil != DateTime.MinValue)
             {
                 Database.DeleteBan(ban, Database.VoiceBans);
-                ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, user,
-                    "Your voice ban has expired. Please verify in your social settings that Voice Proximity is re-enabled.");
+                if (!Settings.ShadowBan.Value)
+                    ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, user,
+                        "Your voice ban has expired. Please verify in your social settings that Voice Proximity is re-enabled.");
             }
             else
             {
-                if(entity.Has<VivoxEvents.ClientEvent>())
+                if (entity.Has<VivoxEvents.ClientEvent>())
                 {
                     VivoxEvents.ClientEvent clientEvent = entity.Read<VivoxEvents.ClientEvent>();
                     clientEvent.Type = VivoxRequestType.ClientLogin;
@@ -57,7 +58,7 @@ public static class VivoxPatch
                     entity.Write(clientEvent);
                 }
 
-                if(entity.Has<VivoxEvents.ClientStateEvent>())
+                if (entity.Has<VivoxEvents.ClientStateEvent>())
                 {
                     VivoxEvents.ClientStateEvent clientStateEvent = entity.Read<VivoxEvents.ClientStateEvent>();
                     clientStateEvent.IsSpeaking = false;
@@ -69,7 +70,7 @@ public static class VivoxPatch
                 return;
             }
         }
-        
+
         if (Database.Banned.Exists(x => x.PlayerID == user.PlatformId))
         {
             Core.Server.EntityManager.DestroyEntity(entity);
