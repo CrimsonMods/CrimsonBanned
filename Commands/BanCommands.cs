@@ -122,14 +122,23 @@ internal static class BanCommands
             }
             else
             {
-                if (SQLlink.ResolveConflict(ban, banList))
+                int i = SQLlink.ResolveConflict(ban, banList);
+
+                if(i == 0)
                 {
-                    ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
-                    return (true, playerInfo);
+                    ctx.Reply($"{name} is already permanently {banType}.");
+                    return (false, null);
                 }
-                else
+
+                if(i == 1)
                 {
                     ctx.Reply($"{name} has had their previous ban imported from SQL with a longer duration.");
+                    return (true, playerInfo);
+                }
+
+                if(i == 2)
+                {
+                    ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
                     return (true, playerInfo);
                 }
             }

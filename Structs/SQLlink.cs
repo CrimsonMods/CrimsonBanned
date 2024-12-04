@@ -40,7 +40,12 @@ public static class SQLlink
         string tableName = list == Database.ChatBans ? "Chat" :
                           list == Database.VoiceBans ? "Voice" : "Banned";
 
-        int i = Database.SQL.Insert(tableName, values);
+        List<int> errors = new List<int>() {
+            -1062,
+            1062
+        };
+
+        int i = Database.SQL.Insert(tableName, values, errors);
         return i;
     }
 
@@ -91,12 +96,18 @@ public static class SQLlink
         return Database.SQL.Connect();
     }
 
-    public static bool ResolveConflict(Ban ban, List<Ban> list, bool removeFromSQL = false)
+    public static int ResolveConflict(Ban ban, List<Ban> list, bool removeFromSQL = false)
     {
         Ban banFromDB = GetBan(ban.PlayerID, list);
 
         if (banFromDB != null)
         {
+            if(banFromDB.TimeUntil == DateTime.MinValue && ban.TimeUntil == DateTime.MinValue)
+            {
+                Database.AddBan(banFromDB, list);
+                return 0;
+            }
+
             if (ban.TimeUntil < banFromDB.TimeUntil || banFromDB.TimeUntil == DateTime.MinValue)
             {
                 if (removeFromSQL)
@@ -105,7 +116,7 @@ public static class SQLlink
                 }
 
                 Database.AddBan(banFromDB, list);
-                return false;
+                return 1;
             }
             else if (ban.TimeUntil > banFromDB.TimeUntil)
             {
@@ -113,13 +124,13 @@ public static class SQLlink
                 int i = AddBan(ban, list);
                 ban.DatabaseId = i;
                 Database.AddBan(ban, list);
-                return true;
+                return 2;
             }
 
-            return false;
+            return 3;
         }
         else
-            return false;
+            return -1000;
     }
 
     public static void ResolveOfflines()

@@ -77,6 +77,42 @@ internal static class BanIDCommands
         if(reason == "") reason = "(None Provided)";
 
         var ban = new Ban(string.Empty, id, bannedTime.ToUniversalTime(), reason, ctx.User.CharacterName.ToString());
+        ban.LocalBan = true;
+
+        if (Database.SQL != null && Settings.UseSQL.Value && SQLlink.Connect())
+        {
+            int response = SQLlink.AddBan(ban, list);
+            if (response >= 0)
+            {
+                ban.DatabaseId = response;
+            }
+            else
+            {
+                int i = SQLlink.ResolveConflict(ban, list);
+
+                if(i == 0)
+                {
+                    ctx.Reply($"{id} is already permanently {banType}.");
+                    return;
+                }
+
+                if(i == 1)
+                {
+                    ctx.Reply($"{id} has had their previous ban imported from SQL with a longer duration.");
+                    return;
+                }
+
+                if(i == 2)
+                {
+                    ctx.Reply($"{id} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
+                    return;
+                }
+            }
+        }
+        else
+        {
+            ban.DatabaseId = -1;
+        }
 
         Database.AddBan(ban, list);
         ctx.Reply($"Player {id} has been {banType}.");
