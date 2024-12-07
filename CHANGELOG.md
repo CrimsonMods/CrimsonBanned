@@ -1,4 +1,7 @@
 ﻿`latest`
+- Fixed a bug with .banned checkid
+
+`1.0.10`
 - Switched to use UTC
 - Standardized Local and SQL Ban's DateTime Serialization
 - Properly display Permanent when appropriate

@@ -16,7 +16,7 @@ internal static class BannedCommands
     const int MESSAGES_PER_PAGE = 2;
 
     [Command(name: "list", shortHand: "l", adminOnly: true)]
-    public static void List(ChatCommandContext ctx, string banType = "server" , string show = "perma/temp", int page = 1)
+    public static void List(ChatCommandContext ctx, string banType = "server", string show = "perma/temp", int page = 1)
     {
         banType = banType.ToLower() switch
         {
@@ -61,8 +61,8 @@ internal static class BannedCommands
             return;
         }
 
-        bans.Sort((x, y) => y.Issued.CompareTo(x.Issued));                
-        
+        bans.Sort((x, y) => y.Issued.CompareTo(x.Issued));
+
         string header = $"\n{banType} Bans:";
 
         List<string> messages = new() { header };
@@ -86,13 +86,13 @@ internal static class BannedCommands
         int totalPages = (int)Math.Ceiling((double)messages.Count / MESSAGES_PER_PAGE);
 
         // always default to page 1 if requested page is invalid
-        if(page < 1 || page > totalPages) page = 1;
+        if (page < 1 || page > totalPages) page = 1;
 
         int startIndex = (page - 1) * MESSAGES_PER_PAGE;
         int endIndex = Math.Min(startIndex + MESSAGES_PER_PAGE, messages.Count);
 
-        if(totalPages > 1) ctx.Reply($"Page {page} of {totalPages}:");
-        for(int i = startIndex; i < endIndex; i++)
+        if (totalPages > 1) ctx.Reply($"Page {page} of {totalPages}:");
+        for (int i = startIndex; i < endIndex; i++)
         {
             ctx.Reply(messages[i]);
         }
@@ -175,19 +175,29 @@ internal static class BannedCommands
         ulong ID = Convert.ToUInt64(id);
         List<(Ban, BanDetails)> playerBans = new List<(Ban, BanDetails)>();
 
-        List<Ban> allBans = new List<Ban>
+        List<Ban> allBans = new List<Ban>();
+
+        if (Database.Banned?.Find(x => x.PlayerID == ID) is Ban serverBan)
+            allBans.Add(serverBan);
+
+        if (Database.ChatBans?.Find(x => x.PlayerID == ID) is Ban chatBan)
+            allBans.Add(chatBan);
+
+        if (Database.VoiceBans?.Find(x => x.PlayerID == ID) is Ban voiceBan)
+            allBans.Add(voiceBan);
+
+        if(allBans.Count == 0)
         {
-            Database.ChatBans.Find(x => x.PlayerID == ID),
-            Database.VoiceBans.Find(x => x.PlayerID == ID),
-            Database.Banned.Find(x => x.PlayerID == ID)
-        };
+            ctx.Reply($"No bans found for ID {ID}.");
+            return;
+        }
 
         bool ContainsNonLocal = false;
         foreach (var ban in allBans)
         {
-            if(!ban.LocalBan) ContainsNonLocal = true;
             if (ban != null)
             {
+                if (!ban.LocalBan) ContainsNonLocal = true;
                 var list = ban switch
                 {
                     var b when Database.Banned.Contains(b) => Database.Banned,
@@ -203,21 +213,13 @@ internal static class BannedCommands
             }
         }
 
-        if (playerBans.Count == 0)
-        {
-            ctx.Reply($"{id} is not banned.");
-            return;
-        }
-
-        string localName = string.Empty;
-        if (Extensions.TryGetPlayerInfo(ID, out PlayerInfo playerInfo) && ContainsNonLocal)
-        {
-            localName = playerInfo.User.CharacterName.ToString();
-        }
-
         StringBuilder banList = new StringBuilder();
         banList.AppendLine(Database.Messages[0].ToString(playerBans[0].Item1, playerBans[0].Item2));
-        banList.AppendLine($"Local server name: {localName}");
+        if (Extensions.TryGetPlayerInfo(ID, out PlayerInfo playerInfo) && ContainsNonLocal)
+        {
+            banList.AppendLine($"Local server name: {playerInfo.User.CharacterName.ToString()}");
+        }
+
         foreach (var ban in playerBans)
         {
             banList.AppendLine(Database.Messages[1].ToString(ban.Item1, ban.Item2));
