@@ -103,6 +103,11 @@ public static class SQLlink
 
         if (banFromDB != null)
         {
+            if(ban.TimeUntil == banFromDB.TimeUntil)
+            {
+                return 4;
+            }
+
             if(TimeUtility.IsPermanent(banFromDB.TimeUntil) && TimeUtility.IsPermanent(ban.TimeUntil))
             {
                 Database.AddBan(banFromDB, list);

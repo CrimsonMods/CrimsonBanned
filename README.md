@@ -105,6 +105,9 @@ As well you can use any valid [Rich Text](https://docs.unity3d.com/Packages/com.
 <color=#00000>{player}</color>
 ```
 
+> [!TIP]
+> You can visually edit this JSON with [JSON Rising](https://thunderstore.io/c/v-rising/p/skytech6/JSONRising/).
+
 ## Commands
 CrimsonBanned has a lot of Commands, please refer to the [Wiki](https://thunderstore.io/c/v-rising/p/skytech6/CrimsonBanned/wiki/) for each command group.
 

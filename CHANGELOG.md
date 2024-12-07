@@ -1,4 +1,9 @@
 ﻿`latest`
+- Noted JSON Rising in README
+- Local can ban extend
+- Output changes
+
+`1.0.12`
 - Fixed a bug with .banned checkid
 
 `1.0.10`

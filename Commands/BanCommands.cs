@@ -132,7 +132,7 @@ internal static class BanCommands
 
                 if(i == 1)
                 {
-                    ctx.Reply($"{name} has had their previous ban imported from SQL with a longer duration.");
+                    ctx.Reply($"{name} already has an active ban with a longer length.");
                     return (true, playerInfo);
                 }
 
@@ -140,6 +140,11 @@ internal static class BanCommands
                 {
                     ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
                     return (true, playerInfo);
+                }
+
+                if(i == 4)
+                {
+                    ctx.Reply($"{name} is already {banType}.");
                 }
             }
         }
@@ -150,7 +155,7 @@ internal static class BanCommands
 
         Database.AddBan(ban, banList);
 
-        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanently" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
+        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanently." : $"for {TimeUtility.FormatRemainder(timeSpan)}.")}");
 
         if (!Settings.ShadowBan.Value || isGameBan)
         {
