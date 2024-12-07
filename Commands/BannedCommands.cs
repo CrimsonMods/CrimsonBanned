@@ -186,7 +186,7 @@ internal static class BannedCommands
         if (Database.VoiceBans?.Find(x => x.PlayerID == ID) is Ban voiceBan)
             allBans.Add(voiceBan);
 
-        if(allBans.Count == 0)
+        if (allBans.Count == 0)
         {
             ctx.Reply($"No bans found for ID {ID}.");
             return;
@@ -211,6 +211,12 @@ internal static class BannedCommands
                     playerBans.Add((ban, details));
                 }
             }
+        }
+
+        if (playerBans.Count == 0)
+        {
+            ctx.Reply($"No bans found for ID {ID}.");
+            return;
         }
 
         StringBuilder banList = new StringBuilder();
@@ -283,7 +289,7 @@ internal static class BannedCommands
 
     internal static bool GetBanDetails(Ban ban, List<Ban> list, out BanDetails details)
     {
-        if (DateTime.Now > ban.TimeUntil.ToLocalTime())
+        if (!TimeUtility.IsPermanent(ban.TimeUntil) && DateTime.Now > ban.TimeUntil.ToLocalTime())
         {
             details = null;
             Database.DeleteBan(ban, list);
