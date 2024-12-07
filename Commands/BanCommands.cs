@@ -100,7 +100,7 @@ internal static class BanCommands
         var timeSpan = TimeUtility.LengthParse(length, timeunit);
         var bannedTime = DateTime.Now + timeSpan;
 
-        if (reason == "") reason = "(None Provided)";
+        if (reason == "") reason = "";
 
         if (length == 0) bannedTime = DateTime.MinValue;
 
@@ -150,7 +150,7 @@ internal static class BanCommands
 
         Database.AddBan(ban, banList);
 
-        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
+        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanently" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
 
         if (!Settings.ShadowBan.Value || isGameBan)
         {

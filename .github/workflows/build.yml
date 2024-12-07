@@ -38,6 +38,13 @@ jobs:
         uses: gittools/actions/gitversion/execute@v0.9.7
         with:
           additionalArguments: '/updateprojectfiles /overrideconfig "mode=Mainline"'
+      
+      - name: Update Changelog Version
+        run: |
+          $content = Get-Content CHANGELOG.md -Raw
+          $content = $content -replace "latest", "${{ env.GitVersion_SemVer }}"
+          Set-Content CHANGELOG.md -Value $content
+        shell: pwsh
 
       - name: Build (Release)
         run: dotnet build . --configuration Release -p:Version=$GitVersion_SemVer -p:LangVersion=latest

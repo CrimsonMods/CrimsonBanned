@@ -51,7 +51,7 @@ internal static class UnbanCommands
         }
 
         var ban = banList.First(x => x.PlayerID == playerInfo.User.PlatformId);
-        Database.DeleteBan(ban, banList);
+        Database.DeleteBan(ban, banList, true);
 
         ctx.Reply($"{name} has been {unbanType}");
 

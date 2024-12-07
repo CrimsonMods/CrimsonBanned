@@ -41,7 +41,7 @@ public struct MessagePair
             message = message.Replace("{type}", "");
         }
 
-        if(IsPermanent(ban.TimeUntil))
+        if(TimeUtility.IsPermanent(ban.TimeUntil))
         {
             message = message.Replace("{until}", "Permanent");
             message = message.Replace("{remainder}", "Permanent");
@@ -53,10 +53,5 @@ public struct MessagePair
         }
 
         return message;
-    }
-
-    private bool IsPermanent(DateTime date)
-    {
-        return date == DateTime.MinValue;
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using CrimsonBanned.Utilities;
 using Unity.Collections;
 
 namespace CrimsonBanned.Structs;
@@ -20,9 +21,9 @@ public static class SQLlink
             ["Issued"] = "DATETIME NOT NULL",
             ["IssuedBy"] = "VARCHAR(255)"
         };
-        Database.SQL.CreateTable("Banned", columns);
-        Database.SQL.CreateTable("Chat", columns);
-        Database.SQL.CreateTable("Voice", columns);
+        Database.SQL.CreateTable("ServerBans", columns);
+        Database.SQL.CreateTable("ChatBans", columns);
+        Database.SQL.CreateTable("VoiceBans", columns);
     }
 
     public static int AddBan(Ban ban, List<Ban> list)
@@ -37,8 +38,8 @@ public static class SQLlink
             ["IssuedBy"] = ban.IssuedBy
         };
 
-        string tableName = list == Database.ChatBans ? "Chat" :
-                          list == Database.VoiceBans ? "Voice" : "Banned";
+        string tableName = list == Database.ChatBans ? "ChatBans" :
+                          list == Database.VoiceBans ? "VoiceBans" : "ServerBans";
 
         List<int> errors = new List<int>() {
             -1062,
@@ -56,8 +57,8 @@ public static class SQLlink
             ["Id"] = ban.DatabaseId
         };
 
-        string tableName = list == Database.ChatBans ? "Chat" :
-                          list == Database.VoiceBans ? "Voice" : "Banned";
+        string tableName = list == Database.ChatBans ? "ChatBans" :
+                          list == Database.VoiceBans ? "VoiceBans" : "ServerBans";
 
         Database.SQL.Delete(tableName, whereConditions);
     }
@@ -68,8 +69,8 @@ public static class SQLlink
         {
             ["PlayerID"] = playerID
         };
-        string tableName = list == Database.ChatBans ? "Chat" :
-                            list == Database.VoiceBans ? "Voice" : "Banned";
+        string tableName = list == Database.ChatBans ? "ChatBans" :
+                            list == Database.VoiceBans ? "VoiceBans" : "ServerBans";
 
         var ban = Database.SQL.Select(tableName, new[] { "*" }, whereConditions);
 
@@ -102,13 +103,13 @@ public static class SQLlink
 
         if (banFromDB != null)
         {
-            if(banFromDB.TimeUntil == DateTime.MinValue && ban.TimeUntil == DateTime.MinValue)
+            if(TimeUtility.IsPermanent(banFromDB.TimeUntil) && TimeUtility.IsPermanent(ban.TimeUntil))
             {
                 Database.AddBan(banFromDB, list);
                 return 0;
             }
 
-            if (ban.TimeUntil < banFromDB.TimeUntil || banFromDB.TimeUntil == DateTime.MinValue)
+            if (ban.TimeUntil < banFromDB.TimeUntil || TimeUtility.IsPermanent(banFromDB.TimeUntil))
             {
                 if (removeFromSQL)
                 {

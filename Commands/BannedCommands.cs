@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using CrimsonBanned.Structs;
+using CrimsonBanned.Utilities;
 using VampireCommandFramework;
 using static CrimsonBanned.Services.PlayerService;
 
@@ -47,11 +48,11 @@ internal static class BannedCommands
 
         if (show == "temp")
         {
-            bans = bans.FindAll(x => x.TimeUntil != DateTime.MinValue);
+            bans = bans.FindAll(x => !TimeUtility.IsPermanent(x.TimeUntil));
         }
         else if (show == "perma")
         {
-            bans = bans.FindAll(x => x.TimeUntil == DateTime.MinValue);
+            bans = bans.FindAll(x => TimeUtility.IsPermanent(x.TimeUntil));
         }
 
         if (bans.Count == 0)
@@ -62,23 +63,23 @@ internal static class BannedCommands
 
         bans.Sort((x, y) => y.Issued.CompareTo(x.Issued));                
         
-        string s = $"{banType} Bans:\n";
+        string header = $"\n{banType} Bans:";
 
-        List<string> messages = new() { s };
+        List<string> messages = new() { header };
         int currentMessageIndex = 0;
 
         foreach (var user in bans)
         {
-            s += Database.Messages[2].ToString(user, null);
+            string banInfo = Database.Messages[2].ToString(user, null);
 
-            if (messages[currentMessageIndex].Length + s.Length > MESSAGE_LIMIT)
+            if (messages[currentMessageIndex].Length + banInfo.Length > MESSAGE_LIMIT)
             {
                 currentMessageIndex++;
-                messages.Add(s);
+                messages.Add(banInfo);
             }
             else
             {
-                messages[currentMessageIndex] += s;
+                messages[currentMessageIndex] += banInfo;
             }
         }
 
@@ -130,10 +131,11 @@ internal static class BannedCommands
 
                 Ban ban = new Ban(string.Empty, Convert.ToUInt64(line), DateTime.MinValue, "Synced from local banlist.txt file.", "banlist.txt");
                 ban.LocalBan = true;
+                ban.DatabaseId = -1;
                 Database.AddBan(ban, Database.Banned);
             }
 
-            ctx.Reply("Local banlist.txt synced to MySQL database.");
+            ctx.Reply("Untracked server bans in banlist.txt imported and added to CrimsonBanned tracking.");
         }
         else
         {
@@ -164,7 +166,7 @@ internal static class BannedCommands
 
         Database.SyncDB();
 
-        ctx.Reply("SQL Database synced.");
+        ctx.Reply("Bans have been synced with SQL Database.");
     }
 
     [Command(name: "checkid", adminOnly: true)]
@@ -229,7 +231,7 @@ internal static class BannedCommands
     {
         if (!Extensions.TryGetPlayerInfo(name, out PlayerInfo playerInfo))
         {
-            ctx.Reply($"Could not find player with the name {name}");
+            ctx.Reply($"Could not find player with the name {name}.");
             return;
         }
 
@@ -303,7 +305,7 @@ internal static class BannedCommands
                 break;
         }
 
-        if (ban.TimeUntil == DateTime.MinValue)
+        if (TimeUtility.IsPermanent(ban.TimeUntil))
         {
             details.RemainingTime = "Permanent";
         }

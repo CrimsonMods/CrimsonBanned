@@ -176,11 +176,11 @@ internal class Database
         string log = string.Empty;
         if (ban.LocalBan)
         {
-            log = $"{type} ban has ended for {ban.PlayerName}";
+            log = $"{type} ban has ended for {ban.PlayerName}.";
         }
         else
         {
-            log = $"{type} ban has ended for synced player ID: {ban.PlayerID}";
+            log = $"{type} ban has ended for synced player ID: {ban.PlayerID}.";
         }
 
         Plugin.LogMessage(log);
@@ -216,9 +216,9 @@ internal class Database
 
     public static void SyncDB()
     {
-        SyncTable(ChatBans, "Chat");
-        SyncTable(VoiceBans, "Voice");
-        SyncTable(Banned, "Banned");
+        SyncTable(ChatBans, "ChatBans");
+        SyncTable(VoiceBans, "VoiceBans");
+        SyncTable(Banned, "ServerBans");
     }
 
     private static void SyncTable(List<Ban> list, string tableName)
@@ -291,7 +291,7 @@ internal class Database
     private static void BanListFix(List<Ban> additional = null)
     {
         var expiredBans = Banned
-                .Where(ban => ban.TimeUntil != DateTime.MinValue && ban.TimeUntil.ToLocalTime() < DateTime.Now)
+                .Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now)
                 .ToList();
 
         if (additional != null) expiredBans = expiredBans.Concat(additional).ToList();
@@ -312,9 +312,9 @@ internal class Database
           {
               yield return new WaitForSeconds(60);
 
-              var bannedToRemove = Banned.Where(ban => ban.TimeUntil != DateTime.MinValue && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
-              var chatBansToRemove = ChatBans.Where(ban => ban.TimeUntil != DateTime.MinValue && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
-              var voiceBansToRemove = VoiceBans.Where(ban => ban.TimeUntil != DateTime.MinValue && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
+              var bannedToRemove = Banned.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
+              var chatBansToRemove = ChatBans.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
+              var voiceBansToRemove = VoiceBans.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
 
               foreach(var ban in bannedToRemove)
               {

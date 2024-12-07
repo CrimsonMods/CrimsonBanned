@@ -1,4 +1,5 @@
 ﻿using CrimsonBanned.Structs;
+using CrimsonBanned.Utilities;
 using HarmonyLib;
 using ProjectM;
 using ProjectM.Network;
@@ -36,7 +37,7 @@ public static class ChatMessagePatch
                 {
                     var ban = Database.ChatBans.First(x => x.PlayerID == userData.PlatformId);
 
-                    if (DateTime.Now > ban.TimeUntil.ToLocalTime() && ban.TimeUntil != DateTime.MinValue)
+                    if (DateTime.Now > ban.TimeUntil.ToLocalTime() && !TimeUtility.IsPermanent(ban.TimeUntil))
                     {
                         Database.ChatBans.Remove(ban);
 

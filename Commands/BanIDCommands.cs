@@ -74,7 +74,7 @@ internal static class BanIDCommands
 
         if(length == 0) bannedTime = DateTime.MinValue;
 
-        if(reason == "") reason = "(None Provided)";
+        if(reason == "") reason = "";
 
         var ban = new Ban(string.Empty, id, bannedTime.ToUniversalTime(), reason, ctx.User.CharacterName.ToString());
         ban.LocalBan = true;
@@ -104,7 +104,7 @@ internal static class BanIDCommands
 
                 if(i == 2)
                 {
-                    ctx.Reply($"{id} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
+                    ctx.Reply($"{id} has been {banType} {(length == 0 ? "permanently" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
                     return;
                 }
             }

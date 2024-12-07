@@ -52,4 +52,12 @@ public static class TimeUtility
             _ => TimeSpan.FromMinutes(length)
         };
     }
+
+    public static bool IsPermanent(DateTime date)
+    {
+        if(date == DateTime.MinValue) return true;
+        if(date == DateTime.MinValue.ToUniversalTime()) return true;
+        if(date ==  DateTime.MinValue.ToLocalTime()) return true;   
+        return false;
+    }
 }

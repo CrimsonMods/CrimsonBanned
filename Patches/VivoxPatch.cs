@@ -1,4 +1,5 @@
 ﻿using CrimsonBanned.Structs;
+using CrimsonBanned.Utilities;
 using HarmonyLib;
 using ProjectM;
 using ProjectM.Network;
@@ -41,7 +42,7 @@ public static class VivoxPatch
         {
             var ban = Database.VoiceBans.First(x => x.PlayerID == user.PlatformId);
 
-            if (DateTime.Now > ban.TimeUntil.ToLocalTime() && ban.TimeUntil != DateTime.MinValue)
+            if (DateTime.Now > ban.TimeUntil.ToLocalTime() && !TimeUtility.IsPermanent(ban.TimeUntil))
             {
                 Database.DeleteBan(ban, Database.VoiceBans);
                 if (!Settings.ShadowBan.Value)
