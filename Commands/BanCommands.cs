@@ -111,9 +111,12 @@ internal static class BanCommands
 
             if (oldBan.TimeUntil > bannedTime)
             {
+                
                 ctx.Reply($"{name} is already {banType}.");
                 return (false, null);
             }
+
+            Database.DeleteBan(oldBan, banList, true);
         }
 
         Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime.ToUniversalTime(), reason, ctx.User.CharacterName.ToString());
