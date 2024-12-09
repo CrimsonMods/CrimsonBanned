@@ -129,7 +129,7 @@ internal static class BannedCommands
             {
                 if (Database.Banned.Exists(x => x.PlayerID == Convert.ToUInt64(line))) continue;
 
-                Ban ban = new Ban(string.Empty, Convert.ToUInt64(line), DateTime.MinValue, "Synced from local banlist.txt file.", "banlist.txt");
+                Ban ban = new Ban(string.Empty, Convert.ToUInt64(line), DateTime.MinValue, "", "banlist.txt");
                 ban.LocalBan = true;
                 ban.DatabaseId = -1;
                 Database.AddBan(ban, Database.Banned);

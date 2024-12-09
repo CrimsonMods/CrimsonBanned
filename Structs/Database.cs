@@ -21,15 +21,17 @@ internal class Database
         WriteIndented = true,
         IncludeFields = true,
     };
-    public static string BannedFile = Path.Combine(Plugin.ConfigFiles, "banned.json");
+    public static string BannedFile = Path.Combine(Plugin.ConfigFiles, "bans_server.json");
     public static string ChatBanFile = Path.Combine(Plugin.ConfigFiles, "bans_chat.json");
     public static string VoiceBanFile = Path.Combine(Plugin.ConfigFiles, "bans_voice.json");
     public static string MessageFile = Path.Combine(Plugin.ConfigFiles, "messages.json");
+    public static string DeleteFile = Path.Combine(Plugin.ConfigFiles, "ignore.json");
 
     public static List<Ban> Banned;
     public static List<Ban> ChatBans;
     public static List<Ban> VoiceBans;
     public static List<MessagePair> Messages;
+    public static List<DeleteLater> Deletes;
 
     public static dynamic SQL => IL2CPPChainloader.Instance.Plugins.TryGetValue("CrimsonSQL", out var pluginInfo)
         ? pluginInfo.Instance.GetType().GetProperty("SQLService").GetValue(pluginInfo.Instance)
@@ -72,6 +74,16 @@ internal class Database
         else
         {
             Banned = new List<Ban>();
+        }
+
+        if(File.Exists(DeleteFile))
+        {
+            string json = File.ReadAllText(DeleteFile);
+            Deletes = JsonSerializer.Deserialize<List<DeleteLater>>(json, prettyJsonOptions);
+        }
+        else
+        {
+            Deletes = new List<DeleteLater>();
         }
 
         if(File.Exists(MessageFile))
@@ -187,7 +199,14 @@ internal class Database
 
         if (SQL != null && Settings.UseSQL.Value && fromResolve && SQL.Connect())
         {
-            SQLlink.DeleteBan(ban, list);
+            if(SQL.Connect())
+            {
+                SQLlink.DeleteBan(ban, list);
+            }
+            else
+            {
+                Deletes.Add(new DeleteLater(ban.DatabaseId, $"{type}Bans"));
+            }
         }
 
         SaveDatabases();
@@ -212,10 +231,26 @@ internal class Database
             string json = JsonSerializer.Serialize(Banned, prettyJsonOptions);
             File.WriteAllText(BannedFile, json);
         }
+
+        if(Deletes.Count > 0 || File.Exists(DeleteFile))
+        {
+            string json = JsonSerializer.Serialize(Deletes, prettyJsonOptions);
+            File.WriteAllText(DeleteFile, json);
+        }
     }
 
     public static void SyncDB()
     {
+        if(!SQL.Connect()) return;
+
+        foreach(var delete in Deletes)
+        {
+            SQLlink.DeleteBan(delete.ID, delete.TableName);
+        }
+
+        Deletes.Clear();
+        if(File.Exists(DeleteFile)) File.Delete(DeleteFile);
+
         SyncTable(ChatBans, "ChatBans");
         SyncTable(VoiceBans, "VoiceBans");
         SyncTable(Banned, "ServerBans");
@@ -223,8 +258,6 @@ internal class Database
 
     private static void SyncTable(List<Ban> list, string tableName)
     {
-        if(!SQL.Connect()) return;
-
         DataTable table = SQL.Select(tableName);
 
         // Create a set of PlayerIDs from the database for efficient lookup
@@ -331,5 +364,17 @@ internal class Database
                   DeleteBan(ban, VoiceBans);
               }
           }
+    }
+}
+
+public struct DeleteLater
+{
+    public int ID { get; set; }
+    public string TableName { get; set; }
+
+    public DeleteLater(int id, string tableName)
+    {
+        ID = id;
+        TableName = tableName;
     }
 }

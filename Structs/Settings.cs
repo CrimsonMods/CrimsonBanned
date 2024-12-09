@@ -22,7 +22,7 @@ public readonly struct Settings
             CreateDirectories(path);
         }
 
-        ShadowBan = InitConfigEntry(ConfigHeader, "ShadowBan", true,
+        ShadowBan = InitConfigEntry(ConfigHeader, "ShadowBan", false,
             "If this is set to true, the player will never be notified when chat or voice banned.");
         BanFilePath = InitConfigEntry(ConfigHeader, "BanFilePath", "save-data/Settings/banlist.txt",
             "The path from root to the banlist.txt file");

@@ -5,6 +5,7 @@ using ProjectM.Network;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Entities;
 using UnityEngine;
 using VampireCommandFramework;
@@ -106,8 +107,13 @@ internal static class BanCommands
 
         if (banList.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
         {
-            ctx.Reply($"{name} is already {banType}.");
-            return (false, null);
+            Ban oldBan = banList.First(x => x.PlayerID == playerInfo.User.PlatformId);
+
+            if (oldBan.TimeUntil > bannedTime)
+            {
+                ctx.Reply($"{name} is already {banType}.");
+                return (false, null);
+            }
         }
 
         Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime.ToUniversalTime(), reason, ctx.User.CharacterName.ToString());
@@ -124,25 +130,25 @@ internal static class BanCommands
             {
                 int i = SQLlink.ResolveConflict(ban, banList);
 
-                if(i == 0)
+                if (i == 0)
                 {
                     ctx.Reply($"{name} is already permanently {banType}.");
                     return (false, null);
                 }
 
-                if(i == 1)
+                if (i == 1)
                 {
                     ctx.Reply($"{name} already has an active ban with a longer length.");
                     return (true, playerInfo);
                 }
 
-                if(i == 2)
+                if (i == 2)
                 {
                     ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
                     return (true, playerInfo);
                 }
 
-                if(i == 4)
+                if (i == 4)
                 {
                     ctx.Reply($"{name} is already {banType}.");
                 }

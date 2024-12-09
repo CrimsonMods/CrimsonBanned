@@ -63,6 +63,16 @@ public static class SQLlink
         Database.SQL.Delete(tableName, whereConditions);
     }
 
+    public static void DeleteBan(int id, string tableName)
+    {
+        var whereConditions = new Dictionary<string, object>
+        {
+            ["Id"] = id
+        };
+
+        Database.SQL.Delete(tableName, whereConditions);
+    }
+
     public static Ban GetBan(ulong playerID, List<Ban> list)
     {
         var whereConditions = new Dictionary<string, object>

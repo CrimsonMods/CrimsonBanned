@@ -1,6 +1,13 @@
 ﻿`latest`
+- ShadowBan False by default
+- banned.json renamed to banned.json
+- banned loaduntracked removed reason
+- Removed early escape for already banned when banning
+- Unban while SQL down check and recover
+
+`1.1.0`
 - Noted JSON Rising in README
-- Local can ban extend
+- Local can ban extended
 - Output changes
 
 `1.0.12`
