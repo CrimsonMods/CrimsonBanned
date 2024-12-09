@@ -63,7 +63,7 @@ SyncInterval = 60
 ```
 How often in minutes do you want the server to sync with the SQL database. This will retrieve bans that other servers have issued.
 
-## messages.json
+## messages.json | GUI Supported Editor: [JSON Rising](https://thunderstore.io/c/v-rising/p/skytech6/JSONRising/)
 CrimsonBanned supports customizing how your command outputs appear such as when using '.banned list (type)' or '.banned check (player)`.
 
 ```json
@@ -102,11 +102,8 @@ Valid Parameters:
 
 As well you can use any valid [Rich Text](https://docs.unity3d.com/Packages/com.unity.textmeshpro@4.0/manual/RichText.html) such as 
 ```
-<color=#00000>{player}</color>
+<color=#000000>{player}</color>
 ```
-
-> [!TIP]
-> You can visually edit this JSON with [JSON Rising](https://thunderstore.io/c/v-rising/p/skytech6/JSONRising/).
 
 ## Commands
 CrimsonBanned has a lot of Commands, please refer to the [Wiki](https://thunderstore.io/c/v-rising/p/skytech6/CrimsonBanned/wiki/) for each command group.
@@ -116,6 +113,7 @@ CrimsonBanned has a lot of Commands, please refer to the [Wiki](https://thunders
 Want to support my V Rising Mod development? 
 
 Donations Accepted
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/skytech6)
 
 Or buy/play my games! 
