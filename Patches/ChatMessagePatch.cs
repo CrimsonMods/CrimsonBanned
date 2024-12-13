@@ -37,7 +37,7 @@ public static class ChatMessagePatch
                 {
                     var ban = Database.ChatBans.First(x => x.PlayerID == userData.PlatformId);
 
-                    if (DateTime.Now > ban.TimeUntil.ToLocalTime() && !TimeUtility.IsPermanent(ban.TimeUntil))
+                    if (DateTime.UtcNow > ban.TimeUntil && !TimeUtility.IsPermanent(ban.TimeUntil))
                     {
                         Database.ChatBans.Remove(ban);
 

@@ -14,8 +14,9 @@ internal static class UnbanIDCommands
     {
         if(!Extensions.TryGetPlayerInfo(id, out var playerInfo))
         {
-            HandleUnbanOperation(ctx, id, Database.Banned, "unbanned");
+            HandleUnbanOperation(ctx, id, Database.Banned, "unbanned from the server", "the server");
         }
+        else
         {
             UnbanCommands.Unban(ctx, playerInfo.User.CharacterName.ToString());
         }
@@ -26,7 +27,7 @@ internal static class UnbanIDCommands
     {
         if(!Extensions.TryGetPlayerInfo(id, out var playerInfo))
         {
-            HandleUnbanOperation(ctx, id, Database.ChatBans, "unbanned from chat");
+            HandleUnbanOperation(ctx, id, Database.ChatBans, "unbanned from chat", "chat");
         }
         else
         {
@@ -39,7 +40,7 @@ internal static class UnbanIDCommands
     {
         if(!Extensions.TryGetPlayerInfo(id, out var playerInfo))
         {
-            HandleUnbanOperation(ctx, id, Database.VoiceBans, "unbanned from voice chat");
+            HandleUnbanOperation(ctx, id, Database.VoiceBans, "unbanned from voice chat", "voice chat");
         }
         else
         {
@@ -54,20 +55,20 @@ internal static class UnbanIDCommands
         UnbanFromVoice(ctx, id);
     }
 
-    private static void HandleUnbanOperation(ChatCommandContext ctx, ulong id, List<Ban> banList, string unbanType)
+    private static void HandleUnbanOperation(ChatCommandContext ctx, ulong id, List<Ban> banList, string unbanType, string noneFound)
     {
         if (!banList.Exists(x => x.PlayerID == id))
         {
-            ctx.Reply($"{id} has no outstanding ban.");
+            ctx.Reply($"{id} is not banned from {noneFound}.");
             return;
         }
 
         var ban = banList.First(x => x.PlayerID == id);
         Database.DeleteBan(ban, banList);
 
-        ctx.Reply($"{id} has been {unbanType}");
+        ctx.Reply($"{id} has been {unbanType}.");
 
-        if (unbanType == "unbanned" && File.Exists(Settings.BanFilePath.Value))
+        if (unbanType.Contains("server") && File.Exists(Settings.BanFilePath.Value))
         {
             var lines = File.ReadAllLines(Settings.BanFilePath.Value).ToList();
             lines.RemoveAll(line => line.Trim() == ban.PlayerID.ToString());

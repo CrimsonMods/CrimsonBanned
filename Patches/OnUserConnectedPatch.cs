@@ -27,7 +27,7 @@ public static class OnUserConnectedPatcch
             {
                 var ban = Database.Banned.First(x => x.PlayerID == userData.PlatformId);
 
-                if (DateTime.Now > ban.TimeUntil.ToLocalTime())
+                if (DateTime.UtcNow > ban.TimeUntil)
                 {
                     Database.DeleteBan(ban, Database.Banned);
                 }

@@ -5,6 +5,7 @@ namespace CrimsonBanned.Utilities;
 
 public static class TimeUtility
 {
+    public static readonly DateTime MinValueUtc = new DateTime(0L, DateTimeKind.Utc);
     public static string FormatRemainder(DateTime date)
     {
         TimeSpan remainder = date - DateTime.Now;
@@ -15,12 +16,11 @@ public static class TimeUtility
     {
         string formattedRemainder = string.Empty;
         if (remainder.Days > 0)
-            formattedRemainder += $"{remainder.Days} days, ";
+            formattedRemainder += $"{remainder.Days} day{(remainder.Days > 1 ? "s" : "")}, ";
         if (remainder.Hours > 0)
-            formattedRemainder += $"{remainder.Hours} hours, ";
+            formattedRemainder += $"{remainder.Hours} hour{(remainder.Hours > 1 ? "s" : "")}, ";
         if (remainder.Minutes > 0)
-            formattedRemainder += $"{remainder.Minutes} minutes";
-
+            formattedRemainder += $"{remainder.Minutes} minute{(remainder.Minutes > 1 ? "s" : "")}";
         if (formattedRemainder.EndsWith(", "))
             formattedRemainder = formattedRemainder.Substring(0, formattedRemainder.Length - 2);
 
@@ -57,7 +57,8 @@ public static class TimeUtility
     {
         if(date == DateTime.MinValue) return true;
         if(date == DateTime.MinValue.ToUniversalTime()) return true;
-        if(date ==  DateTime.MinValue.ToLocalTime()) return true;   
+        if(date ==  DateTime.MinValue.ToLocalTime()) return true;  
+        if(date == MinValueUtc) return true; 
         return false;
     }
 }

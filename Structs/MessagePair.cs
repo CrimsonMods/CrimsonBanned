@@ -28,7 +28,15 @@ public struct MessagePair
         
         message = message.Replace("{id}", ban.PlayerID.ToString());
         message = message.Replace("{issued}", ban.Issued.ToLocalTime().ToString("MM/dd/yy HH:mm"));
-        message = message.Replace("{reason}", ban.Reason);
+        if(ban.Reason == "" || string.IsNullOrEmpty(ban.Reason))
+        {
+            message = message.Replace("{reason}", "(None Provided)");
+        }
+        else
+        {
+            message = message.Replace("{reason}", ban.Reason);
+        }
+        
         message = message.Replace("{by}", ban.IssuedBy);
         message = message.Replace("{local}", ban.LocalBan.ToString());
         

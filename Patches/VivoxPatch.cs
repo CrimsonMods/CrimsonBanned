@@ -42,7 +42,7 @@ public static class VivoxPatch
         {
             var ban = Database.VoiceBans.First(x => x.PlayerID == user.PlatformId);
 
-            if (DateTime.Now > ban.TimeUntil.ToLocalTime() && !TimeUtility.IsPermanent(ban.TimeUntil))
+            if (DateTime.UtcNow > ban.TimeUntil && !TimeUtility.IsPermanent(ban.TimeUntil))
             {
                 Database.DeleteBan(ban, Database.VoiceBans);
                 if (!Settings.ShadowBan.Value)

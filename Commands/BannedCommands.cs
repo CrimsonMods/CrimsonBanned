@@ -63,7 +63,7 @@ internal static class BannedCommands
 
         bans.Sort((x, y) => y.Issued.CompareTo(x.Issued));
 
-        string header = $"\n{banType} Bans:";
+        string header = $"\n{banType} Bans:\n";
 
         List<string> messages = new() { header };
         int currentMessageIndex = 0;
@@ -101,25 +101,7 @@ internal static class BannedCommands
     [Command(name: "loaduntracked", adminOnly: true)]
     public static void Backlog(ChatCommandContext ctx)
     {
-        if (Database.SQL == null)
-        {
-            ctx.Reply("MySQL is not configured. Please configure MySQL using CrimsonSQL.");
-            return;
-        }
-
-        if (!Settings.UseSQL.Value)
-        {
-            ctx.Reply("You are not using CrimsonSQL. Ensure it is installed and the setting is set to true.");
-            return;
-        }
-
-        if (!SQLlink.Connect())
-        {
-            ctx.Reply("Connection could not be established with the SQL database.");
-            return;
-        }
-
-        Database.SyncDB();
+        SQLUtility.SyncDB();
 
         if (File.Exists(Settings.BanFilePath.Value))
         {
@@ -129,13 +111,13 @@ internal static class BannedCommands
             {
                 if (Database.Banned.Exists(x => x.PlayerID == Convert.ToUInt64(line))) continue;
 
-                Ban ban = new Ban(string.Empty, Convert.ToUInt64(line), DateTime.MinValue, "", "banlist.txt");
+                Ban ban = new Ban(string.Empty, Convert.ToUInt64(line), TimeUtility.MinValueUtc, "", "banlist.txt");
                 ban.LocalBan = true;
                 ban.DatabaseId = -1;
                 Database.AddBan(ban, Database.Banned);
             }
 
-            ctx.Reply("Untracked server bans in banlist.txt imported and added to CrimsonBanned tracking.");
+            ctx.Reply("Untracked server bans in banlist.txt imported and added to tracking.");
         }
         else
         {
@@ -164,7 +146,7 @@ internal static class BannedCommands
             return;
         }
 
-        Database.SyncDB();
+        SQLUtility.SyncDB();
 
         ctx.Reply("Bans have been synced with SQL Database.");
     }
@@ -289,7 +271,7 @@ internal static class BannedCommands
 
     internal static bool GetBanDetails(Ban ban, List<Ban> list, out BanDetails details)
     {
-        if (!TimeUtility.IsPermanent(ban.TimeUntil) && DateTime.Now > ban.TimeUntil.ToLocalTime())
+        if (!TimeUtility.IsPermanent(ban.TimeUntil) && DateTime.UtcNow > ban.TimeUntil)
         {
             details = null;
             Database.DeleteBan(ban, list);
@@ -319,7 +301,7 @@ internal static class BannedCommands
         }
         else
         {
-            details.RemainingTime = $"Expires in {ban.TimeUntil.ToLocalTime() - DateTime.Now}";
+            details.RemainingTime = $"Expires in {ban.TimeUntil - DateTime.UtcNow}";
         }
 
         return true;

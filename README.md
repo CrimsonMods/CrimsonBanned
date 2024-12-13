@@ -32,8 +32,8 @@ If you want to keep a record of bans
 ```
 ## If this is set to true, the player will never be notified when chat or voice banned.
 # Setting type: Boolean
-# Default value: true
-ShadowBan = true
+# Default value: false
+ShadowBan = false
 ```
 If you have ShadowBan set to true it will not display any messages to the players banned or notify them when their ban ends. 
 
@@ -44,6 +44,8 @@ If you have ShadowBan set to true it will not display any messages to the player
 BanFilePath = save-data/Settings/banlist.txt
 ```
 The default setting here for where your banlist.txt file is located should be correct. But if not, please do adjust it.
+It may be located at _VRisingServer_Data/StreamingAssets/Settings/_
+
 
 ## Optional Configs for CrimsonSQL
 This config options will only appear if you have CrimsonSQL installed.
@@ -63,7 +65,7 @@ SyncInterval = 60
 ```
 How often in minutes do you want the server to sync with the SQL database. This will retrieve bans that other servers have issued.
 
-## messages.json | GUI Supported Editor: [JSON Rising](https://thunderstore.io/c/v-rising/p/skytech6/JSONRising/)
+## messages.json | GUI Editor Supported: [JSON Rising](https://thunderstore.io/c/v-rising/p/skytech6/JSONRising/)
 CrimsonBanned supports customizing how your command outputs appear such as when using '.banned list (type)' or '.banned check (player)`.
 
 ```json
@@ -102,7 +104,7 @@ Valid Parameters:
 
 As well you can use any valid [Rich Text](https://docs.unity3d.com/Packages/com.unity.textmeshpro@4.0/manual/RichText.html) such as 
 ```
-<color=#000000>{player}</color>
+<color=#FF0000>{player}</color>
 ```
 
 ## Commands

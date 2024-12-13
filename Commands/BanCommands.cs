@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Unity.Entities;
 using UnityEngine;
 using VampireCommandFramework;
@@ -20,9 +21,9 @@ internal static class BanCommands
     public static void Ban(ChatCommandContext ctx, string name, int length = 0, string timeunit = "day", string reason = "")
     {
         var result = HandleBanOperation(ctx, name, length, timeunit, Database.Banned, "banned from the server", true, reason);
-        if (result.Success)
+        if (result.Result.Success)
         {
-            Core.StartCoroutine(DelayKick(result.PlayerInfo));
+            Core.StartCoroutine(DelayKick(result.Result.PlayerInfo));
         }
     }
 
@@ -72,7 +73,7 @@ internal static class BanCommands
         Kick(playerInfo);
     }
 
-    private static (bool Success, PlayerInfo PlayerInfo) HandleBanOperation(ChatCommandContext ctx, string name, int length, string timeunit,
+    private static async Task<(bool Success, PlayerInfo PlayerInfo)> HandleBanOperation(ChatCommandContext ctx, string name, int length, string timeunit,
         List<Ban> banList, string banType, bool isGameBan = false, string reason = "")
     {
         if (!Extensions.TryGetPlayerInfo(name, out PlayerInfo playerInfo))
@@ -99,62 +100,75 @@ internal static class BanCommands
         }
 
         var timeSpan = TimeUtility.LengthParse(length, timeunit);
-        var bannedTime = DateTime.Now + timeSpan;
+        var bannedTime = DateTime.UtcNow + timeSpan;
 
         if (reason == "") reason = "";
 
-        if (length == 0) bannedTime = DateTime.MinValue;
+        if (length == 0) bannedTime = TimeUtility.MinValueUtc;
 
         if (banList.Exists(x => x.PlayerID == playerInfo.User.PlatformId))
         {
             Ban oldBan = banList.First(x => x.PlayerID == playerInfo.User.PlatformId);
+            if (TimeUtility.IsPermanent(oldBan.TimeUntil))
+            {
+                ctx.Reply($"{name} is already permanently {banType}.");
+                return (false, null);
+            }
 
             if (oldBan.TimeUntil > bannedTime)
             {
-                
+
                 ctx.Reply($"{name} is already {banType}.");
                 return (false, null);
             }
 
-            Database.DeleteBan(oldBan, banList, true);
+            Database.DeleteBan(oldBan, banList);
         }
 
-        Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime.ToUniversalTime(), reason, ctx.User.CharacterName.ToString());
+        Ban ban = new Ban(playerInfo.User.CharacterName.ToString(), playerInfo.User.PlatformId, bannedTime, reason, ctx.User.CharacterName.ToString());
         ban.LocalBan = true;
 
-        if (Database.SQL != null && Settings.UseSQL.Value && SQLlink.Connect())
+        if (Database.SQL != null && Settings.UseSQL.Value)
         {
-            int response = SQLlink.AddBan(ban, banList);
-            if (response >= 0)
+            if (SQLlink.Connect())
             {
-                ban.DatabaseId = response;
+                int response = SQLlink.AddBan(ban, banList);
+                if (response >= 0 || response == -1)
+                {
+                    ban.DatabaseId = response;
+                }
+                else
+                {
+                    int i = await SQLConflict.ResolveConflict(ban, banList);
+
+                    if (i == 0)
+                    {
+                        ctx.Reply($"{name} is already permanently {banType}.");
+                        return (false, null);
+                    }
+
+                    if (i == 1)
+                    {
+                        ctx.Reply($"{name} already has an active ban with a longer length.");
+                        return (true, playerInfo);
+                    }
+
+                    if (i == 2)
+                    {
+                        ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
+                        return (true, playerInfo);
+                    }
+
+                    if (i == 4)
+                    {
+                        ctx.Reply($"{name} is already {banType}.");
+                        return (false, null);
+                    }
+                }
             }
             else
             {
-                int i = SQLlink.ResolveConflict(ban, banList);
-
-                if (i == 0)
-                {
-                    ctx.Reply($"{name} is already permanently {banType}.");
-                    return (false, null);
-                }
-
-                if (i == 1)
-                {
-                    ctx.Reply($"{name} already has an active ban with a longer length.");
-                    return (true, playerInfo);
-                }
-
-                if (i == 2)
-                {
-                    ctx.Reply($"{name} has been {banType} {(length == 0 ? "permanent" : $"for {TimeUtility.FormatRemainder(timeSpan)}")}");
-                    return (true, playerInfo);
-                }
-
-                if (i == 4)
-                {
-                    ctx.Reply($"{name} is already {banType}.");
-                }
+                ban.DatabaseId = -1;
             }
         }
         else

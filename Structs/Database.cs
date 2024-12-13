@@ -11,6 +11,7 @@ using UnityEngine;
 using static CrimsonBanned.Services.PlayerService;
 using BepInEx.Unity.IL2CPP;
 using CrimsonBanned.Utilities;
+using System.ComponentModel;
 
 namespace CrimsonBanned.Structs;
 
@@ -76,7 +77,7 @@ internal class Database
             Banned = new List<Ban>();
         }
 
-        if(File.Exists(DeleteFile))
+        if (File.Exists(DeleteFile))
         {
             string json = File.ReadAllText(DeleteFile);
             Deletes = JsonSerializer.Deserialize<List<DeleteLater>>(json, prettyJsonOptions);
@@ -86,7 +87,7 @@ internal class Database
             Deletes = new List<DeleteLater>();
         }
 
-        if(File.Exists(MessageFile))
+        if (File.Exists(MessageFile))
         {
             string json = File.ReadAllText(MessageFile);
             Messages = JsonSerializer.Deserialize<List<MessagePair>>(json, prettyJsonOptions);
@@ -104,7 +105,7 @@ internal class Database
             File.WriteAllText(MessageFile, json);
         }
 
-        if (SQL != null && Settings.UseSQL.Value && SQL.Connect())
+        if (SQL != null && Settings.UseSQL.Value && SQLlink.Connect())
         {
             StartSQLConnection();
         }
@@ -116,13 +117,18 @@ internal class Database
     {
         SQLlink.InitializeBanTables();
         await Task.Yield();
-        SyncDB();
+        SQLUtility.SyncDB();
 
         Core.StartCoroutine(SyncLoop());
     }
 
     public static void AddBan(Ban ban, List<Ban> list)
     {
+        if (list.Exists(x => x.DatabaseId == ban.DatabaseId))
+        {
+            return;
+        }
+
         string type = string.Empty;
         if (list == ChatBans)
         {
@@ -140,7 +146,11 @@ internal class Database
             Banned.Add(ban);
             if (File.Exists(Settings.BanFilePath.Value))
             {
-                File.AppendAllText(Settings.BanFilePath.Value, ban.PlayerID + Environment.NewLine);
+                var existingBans = File.ReadAllLines(Settings.BanFilePath.Value);
+                if (!existingBans.Contains(ban.PlayerID.ToString()))
+                {
+                    File.AppendAllText(Settings.BanFilePath.Value, ban.PlayerID + Environment.NewLine);
+                }
             }
         }
 
@@ -159,7 +169,7 @@ internal class Database
         SaveDatabases();
     }
 
-    public static void DeleteBan(Ban ban, List<Ban> list, bool fromResolve = false)
+    public static void DeleteBan(Ban ban, List<Ban> list)
     {
         string type = string.Empty;
         if (list == ChatBans)
@@ -197,22 +207,19 @@ internal class Database
 
         Plugin.LogMessage(log);
 
-        if (SQL != null && Settings.UseSQL.Value && fromResolve && SQL.Connect())
+        if (SQLUtility.TrySQL())
         {
-            if(SQL.Connect())
-            {
-                SQLlink.DeleteBan(ban, list);
-            }
-            else
-            {
-                Deletes.Add(new DeleteLater(ban.DatabaseId, $"{type}Bans"));
-            }
+            SQLlink.DeleteBan(ban, list);
+        }
+        else if (SQL != null) // SQL exists but connection failed
+        {
+            Deletes.Add(new DeleteLater(ban.DatabaseId, $"{type}Bans"));
         }
 
         SaveDatabases();
     }
 
-    private static void SaveDatabases()
+    public static void SaveDatabases()
     {
         if (ChatBans.Count > 0 || File.Exists(ChatBanFile))
         {
@@ -232,83 +239,11 @@ internal class Database
             File.WriteAllText(BannedFile, json);
         }
 
-        if(Deletes.Count > 0 || File.Exists(DeleteFile))
+        if (Deletes.Count > 0 || File.Exists(DeleteFile))
         {
             string json = JsonSerializer.Serialize(Deletes, prettyJsonOptions);
             File.WriteAllText(DeleteFile, json);
         }
-    }
-
-    public static void SyncDB()
-    {
-        if(!SQL.Connect()) return;
-
-        foreach(var delete in Deletes)
-        {
-            SQLlink.DeleteBan(delete.ID, delete.TableName);
-        }
-
-        Deletes.Clear();
-        if(File.Exists(DeleteFile)) File.Delete(DeleteFile);
-
-        SyncTable(ChatBans, "ChatBans");
-        SyncTable(VoiceBans, "VoiceBans");
-        SyncTable(Banned, "ServerBans");
-    }
-
-    private static void SyncTable(List<Ban> list, string tableName)
-    {
-        DataTable table = SQL.Select(tableName);
-
-        // Create a set of PlayerIDs from the database for efficient lookup
-        var dbPlayerIds = new HashSet<ulong>(
-            table.Rows.Cast<DataRow>()
-            .Select(row => Convert.ToUInt64(row["PlayerID"]))
-        );
-
-        var removedBans = list.Where(ban => !dbPlayerIds.Contains(ban.PlayerID) && ban.DatabaseId != -1).ToList();
-        list.RemoveAll(ban => !dbPlayerIds.Contains(ban.PlayerID));
-        if(list == Banned)
-        {
-            BanListFix(removedBans);
-        }
-
-        // Add missing entries from database
-        foreach (DataRow row in table.Rows)
-        {
-            Ban ban = new Ban(
-                row["PlayerName"].ToString(),
-                Convert.ToUInt64(row["PlayerID"]),
-                Convert.ToDateTime(row["TimeUntil"]),
-                row["Reason"].ToString(),
-                row["IssuedBy"].ToString()
-            );
-
-            ban.Issued = Convert.ToDateTime(row["Issued"]);
-            ban.DatabaseId = Convert.ToInt32(row["Id"]);
-
-            if (!list.Exists(x => x.PlayerID == ban.PlayerID))
-            {
-                list.Add(ban);
-
-                if (list == Banned)
-                {
-                    if (Extensions.TryGetPlayerInfo(ban.PlayerID, out PlayerInfo player))
-                    {
-                        if (player.User.IsConnected)
-                        {
-                            Core.StartCoroutine(BanCommands.DelayKick(player));
-                        }
-                    }
-                    if (File.Exists(Settings.BanFilePath.Value))
-                        File.AppendAllText(Settings.BanFilePath.Value, ban.PlayerID.ToString() + Environment.NewLine);
-                }
-            }
-        }
-
-        SaveDatabases();
-
-        SQLlink.ResolveOfflines();
     }
 
     static IEnumerator SyncLoop()
@@ -317,14 +252,14 @@ internal class Database
         {
             BanListFix();
             yield return new WaitForSeconds(Settings.SyncInterval.Value * 60 + UnityEngine.Random.Range(-10, 20));
-            SyncDB();
+            SQLUtility.SyncDB();
         }
     }
 
-    private static void BanListFix(List<Ban> additional = null)
+    public static void BanListFix(List<Ban> additional = null)
     {
         var expiredBans = Banned
-                .Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now)
+                .Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil < DateTime.UtcNow)
                 .ToList();
 
         if (additional != null) expiredBans = expiredBans.Concat(additional).ToList();
@@ -339,31 +274,32 @@ internal class Database
             }
         }
     }
-      static IEnumerator Clean()
-      {
-          while(true)
-          {
-              yield return new WaitForSeconds(60);
 
-              var bannedToRemove = Banned.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
-              var chatBansToRemove = ChatBans.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
-              var voiceBansToRemove = VoiceBans.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil.ToLocalTime() < DateTime.Now).ToList();
+    static IEnumerator Clean()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(60);
 
-              foreach(var ban in bannedToRemove)
-              {
-                  DeleteBan(ban, Banned);
-              }
+            var bannedToRemove = Banned.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil < DateTime.UtcNow).ToList();
+            var chatBansToRemove = ChatBans.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil < DateTime.UtcNow).ToList();
+            var voiceBansToRemove = VoiceBans.Where(ban => !TimeUtility.IsPermanent(ban.TimeUntil) && ban.TimeUntil < DateTime.UtcNow).ToList();
 
-              foreach(var ban in chatBansToRemove)
-              {
-                  DeleteBan(ban, ChatBans);
-              }
+            foreach (var ban in bannedToRemove)
+            {
+                DeleteBan(ban, Banned);
+            }
 
-              foreach(var ban in voiceBansToRemove)
-              {
-                  DeleteBan(ban, VoiceBans);
-              }
-          }
+            foreach (var ban in chatBansToRemove)
+            {
+                DeleteBan(ban, ChatBans);
+            }
+
+            foreach (var ban in voiceBansToRemove)
+            {
+                DeleteBan(ban, VoiceBans);
+            }
+        }
     }
 }
 

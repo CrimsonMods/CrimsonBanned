@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Linq;
 using CrimsonBanned.Utilities;
-using Unity.Collections;
 
 namespace CrimsonBanned.Structs;
 
@@ -42,11 +39,12 @@ public static class SQLlink
                           list == Database.VoiceBans ? "VoiceBans" : "ServerBans";
 
         List<int> errors = new List<int>() {
-            -1062,
-            1062
+            -1062, -1042
         };
 
         int i = Database.SQL.Insert(tableName, values, errors);
+
+        if(i == -1042) i = -1;
         return i;
     }
 
@@ -102,90 +100,10 @@ public static class SQLlink
 
         return null;
     }
+    
     public static bool Connect()
     {
+        if(Database.SQL == null) return false;
         return Database.SQL.Connect();
-    }
-
-    public static int ResolveConflict(Ban ban, List<Ban> list, bool removeFromSQL = false)
-    {
-        Ban banFromDB = GetBan(ban.PlayerID, list);
-
-        if (banFromDB != null)
-        {
-            if(ban.TimeUntil == banFromDB.TimeUntil)
-            {
-                return 4;
-            }
-
-            if(TimeUtility.IsPermanent(banFromDB.TimeUntil) && TimeUtility.IsPermanent(ban.TimeUntil))
-            {
-                Database.AddBan(banFromDB, list);
-                return 0;
-            }
-
-            if (ban.TimeUntil < banFromDB.TimeUntil || TimeUtility.IsPermanent(banFromDB.TimeUntil))
-            {
-                if (removeFromSQL)
-                {
-                    Database.DeleteBan(ban, list, true);
-                }
-
-                Database.AddBan(banFromDB, list);
-                return 1;
-            }
-            else if (ban.TimeUntil > banFromDB.TimeUntil)
-            {
-                DeleteBan(banFromDB, list);
-                int i = AddBan(ban, list);
-                ban.DatabaseId = i;
-                Database.AddBan(ban, list);
-                return 2;
-            }
-
-            return 3;
-        }
-        else
-            return -1000;
-    }
-
-    public static void ResolveOfflines()
-    {
-        List<Ban> Chat = Database.ChatBans.FindAll(x => x.DatabaseId == -1);
-        List<Ban> Voice = Database.VoiceBans.FindAll(x => x.DatabaseId == -1);
-        List<Ban> Banned = Database.Banned.FindAll(x => x.DatabaseId == -1);
-
-        foreach (Ban ban in Chat)
-        {
-            int i = AddBan(ban, Database.ChatBans);
-            if (i >= 0)
-            {
-                ban.DatabaseId = i;
-            }
-            else
-                ResolveConflict(ban, Database.ChatBans);
-        }
-
-        foreach (Ban ban in Voice)
-        {
-            int i = AddBan(ban, Database.VoiceBans);
-            if (i >= 0)
-            {
-                ban.DatabaseId = i;
-            }
-            else
-                ResolveConflict(ban, Database.VoiceBans);
-        }
-
-        foreach (Ban ban in Banned)
-        {
-            int i = AddBan(ban, Database.Banned);
-            if (i >= 0)
-            {
-                ban.DatabaseId = i;
-            }
-            else
-                ResolveConflict(ban, Database.Banned);
-        }
     }
 }
